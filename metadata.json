@@ -1,0 +1,5 @@
+{
+  "name": "Copy of 반 배정 프로그램 ver.2",
+  "description": "A comprehensive classroom assignment tool for schools. Input student data, apply constraints (separation, integration, special needs), and run distribution algorithms to generate balanced class lists for the upcoming academic year.",
+  "requestFramePermissions": []
+}
