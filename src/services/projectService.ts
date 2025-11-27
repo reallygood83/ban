@@ -5,6 +5,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  getDoc,
   query,
   where,
   orderBy,
@@ -72,6 +73,31 @@ export const getUserProjects = async (userId: string): Promise<Project[]> => {
   } catch (error) {
     console.error('프로젝트 목록 가져오기 실패:', error);
     throw new Error('프로젝트 목록을 불러오는데 실패했습니다.');
+  }
+};
+
+/**
+ * 특정 프로젝트 가져오기
+ */
+export const getProject = async (projectId: string): Promise<Project | null> => {
+  try {
+    const projectRef = doc(db, PROJECTS_COLLECTION, projectId);
+    const projectSnap = await getDoc(projectRef);
+
+    if (!projectSnap.exists()) {
+      return null;
+    }
+
+    const data = projectSnap.data() as ProjectDocument;
+    return {
+      id: projectSnap.id,
+      ...data,
+      createdAt: (data.createdAt as Timestamp).toDate(),
+      updatedAt: (data.updatedAt as Timestamp).toDate()
+    };
+  } catch (error) {
+    console.error('프로젝트 가져오기 실패:', error);
+    throw new Error('프로젝트를 불러오는데 실패했습니다.');
   }
 };
 
