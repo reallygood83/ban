@@ -1,0 +1,144 @@
+/**
+ * 학생 데이터 관리 서비스
+ * 학생 정보 암호화, 저장, 조회 기능
+ */
+
+import { Student, StudentUploadData } from '../types';
+import { encryptStudentName, maskName, maskStudentNumber } from '../lib/encryption';
+
+/**
+ * 업로드 데이터를 암호화된 학생 데이터로 변환
+ */
+export async function encryptStudentData(
+  uploadData: StudentUploadData,
+  userId: string,
+  index: number
+): Promise<Student> {
+  try {
+    // 이름 암호화
+    const encryptedName = await encryptStudentName(uploadData.name, userId);
+
+    // 표시용 마스킹된 이름 생성
+    const displayName = maskName(uploadData.name);
+
+    // 학번 마스킹 (있는 경우)
+    const maskedStudentNumber = uploadData.studentNumber
+      ? maskStudentNumber(uploadData.studentNumber)
+      : undefined;
+
+    // 성별 정규화
+    let gender: 'male' | 'female';
+    if (uploadData.gender === '남' || uploadData.gender === 'male') {
+      gender = 'male';
+    } else {
+      gender = 'female';
+    }
+
+    return {
+      id: `student_${Date.now()}_${index}`,
+      encryptedName,
+      displayName,
+      gender,
+      maskedStudentNumber,
+      specialNeeds: uploadData.specialNeeds,
+      notes: uploadData.notes
+    };
+  } catch (error) {
+    console.error('학생 데이터 암호화 실패:', error);
+    throw new Error(`${uploadData.name} 학생의 데이터 암호화에 실패했습니다.`);
+  }
+}
+
+/**
+ * 여러 학생 데이터를 일괄 암호화
+ */
+export async function encryptStudentDataBatch(
+  uploadDataList: StudentUploadData[],
+  userId: string
+): Promise<Student[]> {
+  const encryptedStudents: Student[] = [];
+
+  for (let i = 0; i < uploadDataList.length; i++) {
+    const student = await encryptStudentData(uploadDataList[i], userId, i);
+    encryptedStudents.push(student);
+  }
+
+  return encryptedStudents;
+}
+
+/**
+ * 학생 데이터 통계 생성
+ */
+export function generateStudentStats(students: Student[]): {
+  total: number;
+  maleCount: number;
+  femaleCount: number;
+  specialNeedsCount: number;
+  genderRatio: string;
+} {
+  const total = students.length;
+  const maleCount = students.filter(s => s.gender === 'male').length;
+  const femaleCount = students.filter(s => s.gender === 'female').length;
+  const specialNeedsCount = students.filter(s => s.specialNeeds).length;
+
+  const genderRatio = total > 0
+    ? `${((maleCount / total) * 100).toFixed(1)}% : ${((femaleCount / total) * 100).toFixed(1)}%`
+    : '0% : 0%';
+
+  return {
+    total,
+    maleCount,
+    femaleCount,
+    specialNeedsCount,
+    genderRatio
+  };
+}
+
+/**
+ * 학생 목록에서 특정 학생 찾기
+ */
+export function findStudentById(students: Student[], studentId: string): Student | undefined {
+  return students.find(s => s.id === studentId);
+}
+
+/**
+ * 학생 목록에서 표시 이름으로 검색
+ */
+export function searchStudentsByDisplayName(students: Student[], query: string): Student[] {
+  const lowerQuery = query.toLowerCase();
+  return students.filter(s =>
+    s.displayName.toLowerCase().includes(lowerQuery) ||
+    s.maskedStudentNumber?.includes(query)
+  );
+}
+
+/**
+ * 학생 데이터 유효성 검사
+ */
+export function validateStudent(student: Student): {
+  valid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  if (!student.id) {
+    errors.push('학생 ID가 없습니다.');
+  }
+
+  if (!student.encryptedName) {
+    errors.push('암호화된 이름이 없습니다.');
+  }
+
+  if (!student.displayName) {
+    errors.push('표시 이름이 없습니다.');
+  }
+
+  if (student.gender !== 'male' && student.gender !== 'female') {
+    errors.push('성별이 올바르지 않습니다.');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
