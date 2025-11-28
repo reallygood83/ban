@@ -444,22 +444,32 @@ export function validateRosterData(rosterData: StudentRosterData[]): {
 }
 
 /**
- * 명렬표 데이터를 StudentUploadData로 변환 (성별 정보 추가)
+ * 명렬표 데이터를 StudentUploadData로 변환 (성별 정보 및 특이사항 추가)
  */
 export function convertRosterToStudentData(
   rosterData: StudentRosterData[],
-  genderMap: Map<string, 'male' | 'female'>
+  genderMap: Map<string, 'male' | 'female'>,
+  specialNeedsMap?: Map<string, string>
 ): StudentUploadData[] {
   return rosterData.map(student => {
-    // 학년-반-번호를 키로 성별 조회
+    // 학년-반-번호를 키로 조회
     const key = `${student.grade}-${student.classNumber}-${student.number}`;
     const gender = genderMap.get(key) || genderMap.get(student.name) || 'male';
+    
+    // 특이사항 조회 (Map에서 먼저 찾고, 없으면 기존 notes 사용)
+    let specialNeeds = specialNeedsMap?.get(key);
+    
+    // '(직접입력)'인 경우 빈 문자열로 처리 (실제 입력값이 없는 경우)
+    if (specialNeeds === '(직접입력)') {
+      specialNeeds = undefined;
+    }
 
     return {
       name: student.name,
       gender,
       studentNumber: `${student.grade}${student.classNumber}${student.number.padStart(2, '0')}`,
-      notes: student.notes
+      specialNeeds: specialNeeds, // Map에서 가져온 값은 specialNeeds로
+      notes: student.notes // 기존 파일의 비고란은 notes로
     };
   });
 }

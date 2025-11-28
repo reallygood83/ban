@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Upload, Users, Check, AlertCircle, Download, UserPlus, Edit, FileSpreadsheet, Info } from 'lucide-react';
+import { ArrowLeft, Upload, Users, Check, AlertCircle, UserPlus, Edit, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { updateProject } from '../services/projectService';
 import {
@@ -10,7 +10,6 @@ import {
   parseRosterCSVFile,
   validateRosterData,
   convertRosterToStudentData,
-  getRosterSummary,
   StudentRosterData
 } from '../lib/fileParser';
 import { encryptStudentDataBatch, generateStudentStats } from '../services/studentService';
@@ -47,7 +46,6 @@ const ManageStudents: React.FC = () => {
   // 명렬표 업로드 관련 상태
   const [showGenderModal, setShowGenderModal] = useState(false);
   const [pendingRosterData, setPendingRosterData] = useState<StudentRosterData[]>([]);
-  const [rosterSummary, setRosterSummary] = useState<ReturnType<typeof getRosterSummary> | null>(null);
 
   // 협업 모드 관련 상태
   const [project, setProject] = useState<Project | null>(null);
@@ -159,10 +157,6 @@ const ManageStudents: React.FC = () => {
             setUploadWarnings(validation.warnings);
           }
 
-          // 요약 정보 설정
-          const summary = getRosterSummary(rosterData);
-          setRosterSummary(summary);
-
           // 성별 입력 모달 표시
           setPendingRosterData(rosterData);
           setShowGenderModal(true);
@@ -231,15 +225,18 @@ const ManageStudents: React.FC = () => {
   };
 
   // 명렬표 성별 입력 완료 핸들러
-  const handleGenderConfirm = async (genderMap: Map<string, 'male' | 'female'>) => {
+  const handleGenderConfirm = async (
+    genderMap: Map<string, 'male' | 'female'>,
+    specialNeedsMap: Map<string, string>
+  ) => {
     if (!currentUser || !projectId) return;
 
     setShowGenderModal(false);
     setUploading(true);
 
     try {
-      // 명렬표 데이터를 StudentUploadData로 변환
-      const uploadData = convertRosterToStudentData(pendingRosterData, genderMap);
+      // 명렬표 데이터를 StudentUploadData로 변환 (특이사항 포함)
+      const uploadData = convertRosterToStudentData(pendingRosterData, genderMap, specialNeedsMap);
       console.log('변환된 학생 수:', uploadData.length);
 
       // 데이터 검증
@@ -263,7 +260,6 @@ const ManageStudents: React.FC = () => {
       setStudents(encryptedStudents);
       setUploadSuccess(true);
       setPendingRosterData([]);
-      setRosterSummary(null);
 
       setTimeout(() => {
         setUploadSuccess(false);
@@ -763,7 +759,6 @@ const ManageStudents: React.FC = () => {
         onClose={() => {
           setShowGenderModal(false);
           setPendingRosterData([]);
-          setRosterSummary(null);
         }}
         rosterData={pendingRosterData}
         onConfirm={handleGenderConfirm}

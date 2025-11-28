@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, Check, AlertCircle } from 'lucide-react';
-import { StudentRosterData, getRosterSummary } from '../lib/fileParser';
+import { StudentRosterData } from '../lib/fileParser';
 
 interface GenderInputModalProps {
   isOpen: boolean;
   onClose: () => void;
   rosterData: StudentRosterData[];
-  onConfirm: (genderMap: Map<string, 'male' | 'female'>) => void;
+  onConfirm: (genderMap: Map<string, 'male' | 'female'>, specialNeedsMap: Map<string, string>) => void;
 }
 
 const GenderInputModal: React.FC<GenderInputModalProps> = ({
@@ -16,8 +16,8 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
   onConfirm
 }) => {
   const [genderMap, setGenderMap] = useState<Map<string, 'male' | 'female'>>(new Map());
+  const [specialNeedsMap, setSpecialNeedsMap] = useState<Map<string, string>>(new Map());
   const [currentClassIndex, setCurrentClassIndex] = useState(0);
-  const [summary, setSummary] = useState<ReturnType<typeof getRosterSummary> | null>(null);
 
   // 반별 그룹
   const [classGroups, setClassGroups] = useState<Map<string, StudentRosterData[]>>(new Map());
@@ -25,9 +25,6 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
 
   useEffect(() => {
     if (rosterData.length > 0) {
-      const s = getRosterSummary(rosterData);
-      setSummary(s);
-
       // 반별 그룹화
       const groups = new Map<string, StudentRosterData[]>();
       rosterData.forEach(student => {
@@ -53,6 +50,16 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
     setGenderMap(newMap);
   };
 
+  const handleSpecialNeedsChange = (studentKey: string, value: string) => {
+    const newMap = new Map(specialNeedsMap);
+    if (value && value !== '해당없음') {
+      newMap.set(studentKey, value);
+    } else {
+      newMap.delete(studentKey);
+    }
+    setSpecialNeedsMap(newMap);
+  };
+
   const handleSelectAllGender = (classKey: string, gender: 'male' | 'female') => {
     const newMap = new Map(genderMap);
     const students = classGroups.get(classKey) || [];
@@ -61,11 +68,6 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
       newMap.set(key, gender);
     });
     setGenderMap(newMap);
-  };
-
-  const getStudentGender = (student: StudentRosterData): 'male' | 'female' | undefined => {
-    const key = `${student.grade}-${student.classNumber}-${student.number}`;
-    return genderMap.get(key);
   };
 
   const isAllGenderSet = (): boolean => {
@@ -89,7 +91,7 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
       alert('모든 학생의 성별을 선택해주세요.');
       return;
     }
-    onConfirm(genderMap);
+    onConfirm(genderMap, specialNeedsMap);
   };
 
   if (!isOpen) return null;
@@ -98,6 +100,8 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
   const currentStudents = classGroups.get(currentClassKey) || [];
   const stats = getCompletionStats();
 
+  const SPECIAL_NEEDS_OPTIONS = ['해당없음', '쌍둥이', '학습부진', '건강문제', '교우관계', '기타(직접입력)'];
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white border-4 border-black shadow-neo-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -105,7 +109,7 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
         <div className="bg-yellow-400 border-b-4 border-black p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Users className="w-6 h-6" />
-            <h2 className="text-xl font-black">학생 성별 입력</h2>
+            <h2 className="text-xl font-black">학생 정보 입력 (성별 및 특이사항)</h2>
           </div>
           <button
             onClick={onClose}
@@ -118,7 +122,7 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
         {/* 진행 상태 */}
         <div className="bg-blue-50 border-b-2 border-black p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-bold">진행 상황</span>
+            <span className="font-bold">성별 입력 진행 상황</span>
             <span className="font-mono">{stats.completed} / {stats.total} 명 완료</span>
           </div>
           <div className="w-full bg-gray-200 h-4 border-2 border-black rounded">
@@ -184,9 +188,10 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {currentStudents.map((student, idx) => {
+                {currentStudents.map((student) => {
                   const studentKey = `${student.grade}-${student.classNumber}-${student.number}`;
                   const gender = genderMap.get(studentKey);
+                  const specialNeeds = specialNeedsMap.get(studentKey) || '';
 
                   return (
                     <div
@@ -203,7 +208,9 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
                           <AlertCircle className="w-4 h-4 text-yellow-600" />
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      
+                      {/* 성별 선택 */}
+                      <div className="flex gap-2 mb-3">
                         <button
                           onClick={() => handleGenderChange(studentKey, 'male')}
                           className={`flex-1 py-2 border-2 border-black font-bold transition-all ${
@@ -224,6 +231,41 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
                         >
                           여
                         </button>
+                      </div>
+
+                      {/* 특이사항 입력 */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-500 block mb-1">특이사항</label>
+                        <select
+                          value={
+                            !specialNeeds ? '해당없음' :
+                            SPECIAL_NEEDS_OPTIONS.includes(specialNeeds) ? specialNeeds :
+                            '기타(직접입력)'
+                          }
+                          onChange={(e) => {
+                            if (e.target.value === '기타(직접입력)') {
+                              handleSpecialNeedsChange(studentKey, '(직접입력)');
+                            } else {
+                              handleSpecialNeedsChange(studentKey, e.target.value);
+                            }
+                          }}
+                          className="w-full border-2 border-black p-1 text-sm mb-1 bg-white"
+                        >
+                          {SPECIAL_NEEDS_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                        {/* '기타(직접입력)'이 선택되었거나, 목록에 없는 값이 입력된 경우 입력창 표시 */}
+                        {((specialNeeds === '(직접입력)') || (specialNeeds && !SPECIAL_NEEDS_OPTIONS.includes(specialNeeds))) && (
+                             <input 
+                                type="text"
+                                placeholder="내용을 입력하세요"
+                                value={specialNeeds === '(직접입력)' ? '' : specialNeeds}
+                                onChange={(e) => handleSpecialNeedsChange(studentKey, e.target.value)}
+                                className="w-full border-2 border-black p-1 text-sm mt-1"
+                                autoFocus={specialNeeds === '(직접입력)'}
+                             />
+                         )}
                       </div>
                     </div>
                   );
