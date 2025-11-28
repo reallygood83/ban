@@ -54,8 +54,9 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
     };
 
     const processFile = async (file: File) => {
-        if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-            setError('엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.');
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        if (!['xlsx', 'xls', 'csv'].includes(extension || '')) {
+            setError('엑셀 파일(.xlsx, .xls) 또는 CSV 파일(.csv)만 업로드 가능합니다.');
             return;
         }
 
@@ -67,10 +68,21 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
         reader.onload = (e) => {
             try {
                 const data = e.target?.result;
-                const workbook = XLSX.read(data, { type: 'binary' });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const jsonData = XLSX.utils.sheet_to_json(sheet);
+                let jsonData: any[];
+
+                if (extension === 'csv') {
+                    // CSV 파일 처리
+                    const workbook = XLSX.read(data, { type: 'binary' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    jsonData = XLSX.utils.sheet_to_json(sheet);
+                } else {
+                    // Excel 파일 처리
+                    const workbook = XLSX.read(data, { type: 'binary' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    jsonData = XLSX.utils.sheet_to_json(sheet);
+                }
 
                 const parsedData: StudentUploadData[] = jsonData.map((row: any) => ({
                     name: row['이름'] || row['Name'] || row['name'],
@@ -81,7 +93,7 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                 })).filter(item => item.name && item.gender);
 
                 if (parsedData.length === 0) {
-                    setError('유효한 데이터가 없습니다. 엑셀 파일의 컬럼명(이름, 성별)을 확인해주세요.');
+                    setError('유효한 데이터가 없습니다. 파일의 컨럼명(이름, 성별)을 확인해주세요.');
                     setFile(null);
                 } else {
                     setPreviewData(parsedData);
@@ -169,12 +181,12 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                         type="file"
                         ref={fileInputRef}
                         className="hidden"
-                        accept=".xlsx, .xls"
+                        accept=".xlsx, .xls, .csv"
                         onChange={handleFileSelect}
                     />
                     <Upload className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                    <p className="text-xl font-bold mb-2">엑셀 파일을 이곳에 드래그하거나 클릭하세요</p>
-                    <p className="text-gray-500">지원 형식: .xlsx, .xls</p>
+                    <p className="text-xl font-bold mb-2">파일을 이곳에 드래그하거나 클릭하세요</p>
+                    <p className="text-gray-500">지원 형식: .xlsx, .xls, .csv</p>
                     <div className="mt-6 text-sm text-gray-500 bg-white border border-black p-4 inline-block text-left">
                         <p className="font-bold mb-1">📝 필수 컬럼:</p>
                         <ul className="list-disc list-inside">
