@@ -155,7 +155,8 @@ export interface Student {
   displayName: string;           // 마스킹된 표시용 이름 (예: 김*수)
   gender: 'male' | 'female';
   maskedStudentNumber?: string;  // 마스킹된 학번 (예: 2025****23)
-  specialNeeds?: string;         // 특수학급, 학습부진 등
+  specialNeeds?: string;         // 특수학급, 학습부진 등 (하위 호환성)
+  specialTags?: string[];        // 특기사항 태그 배열 (신규)
   notes?: string;
   assignedClass?: number;        // 배정된 반 번호
   separateFrom?: string[];       // 분리 희망 학생 ID 목록
@@ -172,6 +173,7 @@ export interface StudentUploadData {
   gender?: 'male' | 'female'; // Optional - NEIS format doesn't include gender column
   studentNumber?: string;
   specialNeeds?: string;
+  specialTags?: string[];     // 특기사항 태그 배열
   notes?: string;
 }
 

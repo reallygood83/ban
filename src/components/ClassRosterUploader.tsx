@@ -544,21 +544,78 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                             <td className="px-4 py-2 text-sm text-gray-600">
                               {student.studentNumber || '-'}
                             </td>
-                            <td className="px-4 py-2">
-                              <input
-                                type="text"
-                                value={student.specialNeeds || ''}
-                                onChange={(e) => {
-                                  const newStudents = [...uploadedStudents];
-                                  newStudents[index] = {
-                                    ...newStudents[index],
-                                    specialNeeds: e.target.value
-                                  };
-                                  setUploadedStudents(newStudents);
-                                }}
-                                placeholder="특수학급 정보"
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                              />
+                            <td className="px-2 py-2">
+                              {/* 특기사항 체크박스 */}
+                              <div className="flex flex-col gap-1">
+                                {/* 미리 정의된 특기사항 체크박스 */}
+                                <div className="flex flex-wrap gap-1">
+                                  {['특수학급', '쌍생아', '기초학력미달', 'ADHD', '난독증'].map(tag => (
+                                    <label key={tag} className="flex items-center gap-1 text-xs cursor-pointer hover:bg-gray-50 px-1 rounded">
+                                      <input
+                                        type="checkbox"
+                                        checked={student.specialTags?.includes(tag) || false}
+                                        onChange={(e) => {
+                                          const newStudents = [...uploadedStudents];
+                                          const currentTags = newStudents[index].specialTags || [];
+                                          if (e.target.checked) {
+                                            newStudents[index] = {
+                                              ...newStudents[index],
+                                              specialTags: [...currentTags, tag]
+                                            };
+                                          } else {
+                                            newStudents[index] = {
+                                              ...newStudents[index],
+                                              specialTags: currentTags.filter(t => t !== tag)
+                                            };
+                                          }
+                                          setUploadedStudents(newStudents);
+                                        }}
+                                        className="w-3 h-3"
+                                      />
+                                      <span className="text-[10px] whitespace-nowrap">{tag}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                                {/* 직접 입력 필드 */}
+                                <input
+                                  type="text"
+                                  value={student.specialNeeds || ''}
+                                  onChange={(e) => {
+                                    const newStudents = [...uploadedStudents];
+                                    newStudents[index] = {
+                                      ...newStudents[index],
+                                      specialNeeds: e.target.value
+                                    };
+                                    setUploadedStudents(newStudents);
+                                  }}
+                                  placeholder="기타 특기사항 직접 입력"
+                                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                />
+                                {/* 선택된 태그 표시 */}
+                                {student.specialTags && student.specialTags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {student.specialTags.map(tag => (
+                                      <span key={tag} className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-[10px] font-semibold">
+                                        {tag}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newStudents = [...uploadedStudents];
+                                            newStudents[index] = {
+                                              ...newStudents[index],
+                                              specialTags: student.specialTags?.filter(t => t !== tag)
+                                            };
+                                            setUploadedStudents(newStudents);
+                                          }}
+                                          className="hover:text-blue-900"
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-2">
                               <input
