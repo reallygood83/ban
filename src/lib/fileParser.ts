@@ -103,6 +103,29 @@ export async function detectCSVFormat(file: File): Promise<'standard' | 'roster'
   });
 }
 
+export async function detectGenderColumn(file: File): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const firstLine = text.split('\n')[0] || '';
+        const headers = parseCSVLine(firstLine).map(h => h.toLowerCase().trim());
+        resolve(headers.includes('성별'));
+      } catch (error) {
+        reject(new Error('파일 형식을 확인할 수 없습니다.'));
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error('파일을 읽는데 실패했습니다.'));
+    };
+
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
 /**
  * 명렬표 CSV 텍스트를 파싱 (학년, 반, 번호, 성명, 비고)
  */
@@ -222,6 +245,50 @@ function parseCSVText(text: string): StudentUploadData[] {
   });
 
   return students;
+}
+
+export async function parseStandardCSVWithoutGender(file: File): Promise<StudentRosterData[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n').filter(line => line.trim());
+        if (lines.length < 2) {
+          throw new Error('CSV 파일에 데이터가 없습니다.');
+        }
+
+        const headerLine = lines[0];
+        const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().trim());
+        const nameIdx = headers.findIndex(h => h === '성명' || h.includes('이름') || h.includes('성명'));
+        const numberIdx = headers.findIndex(h => h === '번호' || h.includes('번호'));
+        const notesIdx = headers.findIndex(h => h === '비고' || h.includes('비고'));
+
+        const dataLines = lines.slice(1);
+        const roster: StudentRosterData[] = [];
+
+        dataLines.forEach((line, index) => {
+          const values = parseCSVLine(line);
+          const name = nameIdx >= 0 && values[nameIdx] ? values[nameIdx].trim() : values[0]?.trim() || '';
+          if (!name) return;
+          const number = numberIdx >= 0 && values[numberIdx] ? values[numberIdx].trim() : String(index + 1);
+          const notes = notesIdx >= 0 && values[notesIdx] ? values[notesIdx].trim() : undefined;
+          roster.push({ grade: '', classNumber: '', number, name, notes });
+        });
+
+        resolve(roster);
+      } catch (error) {
+        reject(new Error('CSV 파일 파싱에 실패했습니다.'));
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error('파일을 읽는데 실패했습니다.'));
+    };
+
+    reader.readAsText(file, 'UTF-8');
+  });
 }
 
 /**
@@ -464,12 +531,15 @@ export function convertRosterToStudentData(
       specialNeeds = undefined;
     }
 
+    const hasClassInfo = Boolean(student.grade && student.classNumber);
+    const studentNumber = hasClassInfo ? `${student.grade}${student.classNumber}${student.number.padStart(2, '0')}` : undefined;
+
     return {
       name: student.name,
       gender,
-      studentNumber: `${student.grade}${student.classNumber}${student.number.padStart(2, '0')}`,
-      specialNeeds: specialNeeds, // Map에서 가져온 값은 specialNeeds로
-      notes: student.notes // 기존 파일의 비고란은 notes로
+      studentNumber,
+      specialNeeds: specialNeeds,
+      notes: student.notes
     };
   });
 }

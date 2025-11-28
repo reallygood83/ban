@@ -10,6 +10,8 @@ import {
   parseRosterCSVFile,
   validateRosterData,
   convertRosterToStudentData,
+  detectGenderColumn,
+  parseStandardCSVWithoutGender,
   StudentRosterData
 } from '../lib/fileParser';
 import { encryptStudentDataBatch, generateStudentStats } from '../services/studentService';
@@ -163,6 +165,27 @@ const ManageStudents: React.FC = () => {
           setUploading(false);
           e.target.value = '';
           return;
+        } else {
+          const hasGender = await detectGenderColumn(file);
+          if (!hasGender) {
+            console.log('CSV에 성별 컬럼 없음: 성별 입력 UI로 전환');
+            const rosterData = await parseStandardCSVWithoutGender(file);
+            const validation = validateRosterData(rosterData);
+            if (!validation.valid) {
+              setUploadError(validation.errors.join('\n'));
+              setUploading(false);
+              e.target.value = '';
+              return;
+            }
+            if (validation.warnings.length > 0) {
+              setUploadWarnings(validation.warnings);
+            }
+            setPendingRosterData(rosterData);
+            setShowGenderModal(true);
+            setUploading(false);
+            e.target.value = '';
+            return;
+          }
         }
       }
 
