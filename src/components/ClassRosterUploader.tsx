@@ -453,7 +453,7 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                   })()}
                 </div>
 
-                {/* Preview Table */}
+                {/* Preview Table - Editable */}
                 <div className="border-2 border-black rounded-lg overflow-hidden">
                   <div className="max-h-96 overflow-y-auto">
                     <table className="w-full">
@@ -463,6 +463,7 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                           <th className="px-4 py-2 text-left font-bold">이름</th>
                           <th className="px-4 py-2 text-left font-bold">성별</th>
                           <th className="px-4 py-2 text-left font-bold">학번</th>
+                          <th className="px-4 py-2 text-left font-bold">특수학급</th>
                           <th className="px-4 py-2 text-left font-bold">비고</th>
                         </tr>
                       </thead>
@@ -472,19 +473,56 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                             <td className="px-4 py-2">{index + 1}</td>
                             <td className="px-4 py-2 font-semibold">{student.name}</td>
                             <td className="px-4 py-2">
-                              <span className={`px-2 py-1 rounded text-xs font-bold ${
-                                student.gender === 'male'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-pink-100 text-pink-700'
-                              }`}>
-                                {student.gender === 'male' ? '남' : '여'}
-                              </span>
+                              <select
+                                value={student.gender}
+                                onChange={(e) => {
+                                  const newStudents = [...uploadedStudents];
+                                  newStudents[index] = {
+                                    ...newStudents[index],
+                                    gender: e.target.value as 'male' | 'female'
+                                  };
+                                  setUploadedStudents(newStudents);
+                                }}
+                                className="px-2 py-1 border-2 border-black rounded font-semibold text-sm"
+                              >
+                                <option value="male">남</option>
+                                <option value="female">여</option>
+                              </select>
                             </td>
                             <td className="px-4 py-2 text-sm text-gray-600">
                               {student.studentNumber || '-'}
                             </td>
-                            <td className="px-4 py-2 text-sm text-gray-600">
-                              {student.specialNeeds || student.notes || '-'}
+                            <td className="px-4 py-2">
+                              <input
+                                type="text"
+                                value={student.specialNeeds || ''}
+                                onChange={(e) => {
+                                  const newStudents = [...uploadedStudents];
+                                  newStudents[index] = {
+                                    ...newStudents[index],
+                                    specialNeeds: e.target.value
+                                  };
+                                  setUploadedStudents(newStudents);
+                                }}
+                                placeholder="특수학급 정보"
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="text"
+                                value={student.notes || ''}
+                                onChange={(e) => {
+                                  const newStudents = [...uploadedStudents];
+                                  newStudents[index] = {
+                                    ...newStudents[index],
+                                    notes: e.target.value
+                                  };
+                                  setUploadedStudents(newStudents);
+                                }}
+                                placeholder="비고"
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              />
                             </td>
                           </tr>
                         ))}

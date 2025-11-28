@@ -343,3 +343,93 @@ export interface MergedRosterResult {
   pendingClasses: number[];
   confirmedClasses: number[];
 }
+
+// ============================================
+// AI 반 배정 알고리즘 관련 타입 정의
+// ============================================
+
+/**
+ * 경고 심각도 수준
+ */
+export type WarningSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * 배정 경고 타입
+ */
+export type WarningType =
+  | 'same-name'              // 동명이인
+  | 'gender-imbalance'       // 성별 불균형
+  | 'special-needs-cluster'  // 특수학급 학생 집중
+  | 'constraint-violation'   // 분리/통합 제약 위반
+  | 'class-size-imbalance';  // 반 인원 불균형
+
+/**
+ * 배정 경고 정보
+ * - 핑크색 하이라이트 대상 학생 식별용
+ */
+export interface AssignmentWarning {
+  studentId: string;         // 경고 대상 학생 ID
+  studentName: string;       // 표시용 이름
+  warningType: WarningType;  // 경고 유형
+  severity: WarningSeverity; // 심각도
+  message: string;           // 경고 메시지
+  suggestion?: string;       // 해결 제안
+  affectedStudents?: string[]; // 관련된 다른 학생 ID들
+}
+
+/**
+ * 동명이인 그룹
+ * - 같은 이름을 가진 학생들의 그룹
+ */
+export interface SameNameGroup {
+  name: string;              // 공통 이름
+  studentIds: string[];      // 해당 이름을 가진 학생 ID 목록
+  count: number;             // 동명이인 인원 수
+}
+
+/**
+ * 배정 제약조건
+ */
+export interface AssignmentConstraint {
+  studentId: string;
+  type: 'separate' | 'group'; // 분리 또는 통합
+  targetIds: string[];        // 대상 학생 ID들
+  reason?: string;            // 제약 이유
+}
+
+/**
+ * 반 균형 평가 지표
+ */
+export interface ClassBalance {
+  classNumber: number;
+  totalStudents: number;
+  maleCount: number;
+  femaleCount: number;
+  specialNeedsCount: number;
+  genderRatio: number;        // 성비 (male / total)
+  balanceScore: number;       // 0-100 균형 점수
+}
+
+/**
+ * AI 배정 결과 (확장)
+ * - 기존 ClassAssignment에 경고 및 균형 정보 추가
+ */
+export interface AIClassAssignment extends ClassAssignment {
+  warnings: AssignmentWarning[];  // 이 반의 경고 목록
+  balance: ClassBalance;          // 균형 평가 지표
+  constraintsSatisfied: number;   // 만족된 제약조건 수
+  constraintsViolated: number;    // 위반된 제약조건 수
+}
+
+/**
+ * 전체 배정 결과 및 분석
+ */
+export interface AssignmentResult {
+  assignments: AIClassAssignment[]; // 반별 배정 결과
+  allWarnings: AssignmentWarning[]; // 전체 경고 목록
+  sameNameGroups: SameNameGroup[];  // 동명이인 그룹 목록
+  overallBalance: number;           // 전체 균형 점수 (0-100)
+  totalConstraints: number;         // 전체 제약조건 수
+  satisfiedConstraints: number;     // 만족된 제약조건 수
+  violatedConstraints: number;      // 위반된 제약조건 수
+}

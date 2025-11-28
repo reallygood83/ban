@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, Download, Users, TrendingUp, FileText } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Download, Users, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getProject, updateProject } from '../services/projectService';
-import { assignStudentsToClasses, calculateBalanceScore, generateAssignmentSummary } from '../services/classAssignmentService';
+import { assignStudentsToClasses as runAIAssignment } from '../services/aiClassAssignmentService';
+import { calculateBalanceScore, generateAssignmentSummary } from '../services/classAssignmentService';
 import { exportToExcelHTML, exportToCSV } from '../lib/excelExport';
-import { Project, ClassAssignment, Student } from '../types';
+import { Project, Student, AssignmentResult, AssignmentWarning, AIClassAssignment } from '../types';
 
 const ClassAssignmentPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -13,11 +14,13 @@ const ClassAssignmentPage: React.FC = () => {
   const { currentUser } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
-  const [assignments, setAssignments] = useState<ClassAssignment[]>([]);
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [assignments, setAssignments] = useState<AIClassAssignment[]>([]);
+  const [allWarnings, setAllWarnings] = useState<AssignmentWarning[]>([]);
+  const [assignmentResult, setAssignmentResult] = useState<AssignmentResult | null>(null);
   const [balanceScore, setBalanceScore] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
+  const [studentsNeedingReview, setStudentsNeedingReview] = useState<Set<string>>(new Set());
 
   // 프로젝트 데이터 로드
   useEffect(() => {
@@ -71,25 +74,54 @@ const ClassAssignmentPage: React.FC = () => {
     setAssigning(true);
 
     try {
-      console.log('반 배정 시작...');
-      const result = assignStudentsToClasses(project.students, project.classCount);
+      console.log('🚀 AI 반 배정 시작...');
+      console.log(`📊 학생 수: ${project.students.length}명, 반 수: ${project.classCount}개`);
 
+      // AI 기반 반 배정 실행
+      const result: AssignmentResult = runAIAssignment(project.students, project.classCount);
+
+      console.log('✅ AI 배정 완료!');
+      console.log(`📋 전체 경고: ${result.allWarnings.length}개`);
+      console.log(`🎯 동명이인 그룹: ${result.sameNameGroups.length}개`);
+      console.log(`⚖️ 균형 점수: ${result.overallBalance.toFixed(1)}`);
+      console.log(`✔️ 제약조건: ${result.satisfiedConstraints}/${result.totalConstraints} 만족`);
+
+      // 결과 저장
+      setAssignmentResult(result);
       setAssignments(result.assignments);
-      setWarnings(result.warnings);
+      setAllWarnings(result.allWarnings);
+      setBalanceScore(Math.round(result.overallBalance));
 
-      const score = calculateBalanceScore(result.assignments);
-      setBalanceScore(score);
+      // 수정 필요 학생 식별 (critical 또는 high severity)
+      const needsReview = new Set(
+        result.allWarnings
+          .filter(w => w.severity === 'critical' || w.severity === 'high')
+          .map(w => w.studentId)
+      );
+      setStudentsNeedingReview(needsReview);
+
+      console.log(`⚠️ 수정 검토 필요 학생: ${needsReview.size}명`);
 
       // Firebase에 결과 저장
       await updateProject(projectId!, {
-        assignments: result.assignments,
+        assignments: result.assignments as any, // AIClassAssignment를 ClassAssignment로 호환
         status: 'completed'
       });
 
-      console.log('반 배정 완료!');
-      alert('반 배정이 완료되었습니다!');
+      console.log('💾 Firebase 저장 완료!');
+
+      // 경고가 많을 경우 알림
+      if (result.allWarnings.length > 0) {
+        alert(
+          `반 배정이 완료되었습니다!\n\n` +
+          `⚠️ ${result.allWarnings.length}개의 경고가 있습니다.\n` +
+          `핑크색으로 표시된 학생들을 확인해주세요.`
+        );
+      } else {
+        alert('✅ 반 배정이 완료되었습니다! 경고 사항이 없습니다.');
+      }
     } catch (error) {
-      console.error('반 배정 오류:', error);
+      console.error('❌ 반 배정 오류:', error);
       alert('반 배정 중 오류가 발생했습니다.');
     } finally {
       setAssigning(false);
@@ -255,17 +287,83 @@ const ClassAssignmentPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 경고 메시지 */}
-              {warnings.length > 0 && (
+              {/* 경고 메시지 - 심각도별 표시 */}
+              {allWarnings.length > 0 && (
                 <div className="neo-card bg-yellow-50">
-                  <h3 className="neo-heading-sm mb-4">⚠️ 주의사항</h3>
-                  <ul className="space-y-2">
-                    {warnings.map((warning, idx) => (
-                      <li key={idx} className="text-sm text-yellow-800">
-                        • {warning}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="flex items-center gap-3 mb-4">
+                    <AlertTriangle className="w-6 h-6 text-yellow-600" />
+                    <h3 className="neo-heading-sm">⚠️ 배정 경고 및 주의사항</h3>
+                  </div>
+
+                  {/* 심각도별 경고 그룹 */}
+                  <div className="space-y-4">
+                    {/* Critical 경고 */}
+                    {allWarnings.filter(w => w.severity === 'critical').length > 0 && (
+                      <div className="bg-red-50 border-2 border-red-400 p-4 rounded">
+                        <p className="font-bold text-red-800 mb-2">🚨 즉시 수정 필요 ({allWarnings.filter(w => w.severity === 'critical').length}건)</p>
+                        <ul className="space-y-1">
+                          {allWarnings.filter(w => w.severity === 'critical').map((warning, idx) => (
+                            <li key={idx} className="text-sm text-red-700">
+                              • <span className="font-semibold">{warning.studentName}</span>: {warning.message}
+                              {warning.suggestion && <span className="text-red-600"> → {warning.suggestion}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* High 경고 */}
+                    {allWarnings.filter(w => w.severity === 'high').length > 0 && (
+                      <div className="bg-orange-50 border-2 border-orange-400 p-4 rounded">
+                        <p className="font-bold text-orange-800 mb-2">⚠️ 수정 권장 ({allWarnings.filter(w => w.severity === 'high').length}건)</p>
+                        <ul className="space-y-1">
+                          {allWarnings.filter(w => w.severity === 'high').map((warning, idx) => (
+                            <li key={idx} className="text-sm text-orange-700">
+                              • <span className="font-semibold">{warning.studentName}</span>: {warning.message}
+                              {warning.suggestion && <span className="text-orange-600"> → {warning.suggestion}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Medium 경고 */}
+                    {allWarnings.filter(w => w.severity === 'medium').length > 0 && (
+                      <div className="bg-yellow-50 border-2 border-yellow-400 p-4 rounded">
+                        <p className="font-bold text-yellow-800 mb-2">ℹ️ 확인 필요 ({allWarnings.filter(w => w.severity === 'medium').length}건)</p>
+                        <ul className="space-y-1">
+                          {allWarnings.filter(w => w.severity === 'medium').map((warning, idx) => (
+                            <li key={idx} className="text-sm text-yellow-700">
+                              • <span className="font-semibold">{warning.studentName}</span>: {warning.message}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* 동명이인 그룹 별도 표시 */}
+                    {assignmentResult?.sameNameGroups && assignmentResult.sameNameGroups.length > 0 && (
+                      <div className="bg-purple-50 border-2 border-purple-400 p-4 rounded">
+                        <p className="font-bold text-purple-800 mb-2">👥 동명이인 감지 ({assignmentResult.sameNameGroups.length}그룹)</p>
+                        <ul className="space-y-1">
+                          {assignmentResult.sameNameGroups.map((group, idx) => (
+                            <li key={idx} className="text-sm text-purple-700">
+                              • <span className="font-semibold">{group.name}</span> ({group.count}명) - 자동으로 다른 반에 배정됨
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 핑크색 하이라이트 안내 */}
+                  {studentsNeedingReview.size > 0 && (
+                    <div className="mt-4 bg-pink-50 border-2 border-pink-400 p-3 rounded">
+                      <p className="text-sm font-bold text-pink-800">
+                        💡 핑크색으로 표시된 학생 ({studentsNeedingReview.size}명)은 배정을 재검토해야 할 수 있습니다.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -306,18 +404,28 @@ const ClassAssignmentPage: React.FC = () => {
 
                     <div className="max-h-64 overflow-y-auto border-2 border-gray-200 rounded p-2">
                       <ul className="space-y-1">
-                        {classData.students.map((student) => (
-                          <li
-                            key={student.id}
-                            className="text-sm flex items-center justify-between p-1 hover:bg-gray-50"
-                          >
-                            <span className="font-semibold">{student.displayName}</span>
-                            <span className="text-xs text-gray-600">
-                              {student.gender === 'male' ? '남' : '여'}
-                              {student.specialNeeds && ' ⭐'}
-                            </span>
-                          </li>
-                        ))}
+                        {classData.students.map((student) => {
+                          const needsReview = studentsNeedingReview.has(student.id);
+                          return (
+                            <li
+                              key={student.id}
+                              className={`text-sm flex items-center justify-between p-2 rounded transition-colors ${
+                                needsReview
+                                  ? 'bg-pink-100 border-2 border-pink-400 font-bold'
+                                  : 'hover:bg-gray-50'
+                              }`}
+                            >
+                              <span className="font-semibold flex items-center gap-1">
+                                {needsReview && <AlertTriangle className="w-4 h-4 text-pink-600" />}
+                                {student.displayName}
+                              </span>
+                              <span className="text-xs text-gray-600">
+                                {student.gender === 'male' ? '남' : '여'}
+                                {student.specialNeeds && ' ⭐'}
+                              </span>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   </div>
