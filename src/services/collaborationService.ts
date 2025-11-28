@@ -757,6 +757,56 @@ export async function saveMergedStudentsToProject(projectId: string): Promise<nu
   }
 }
 
+/**
+ * 학생 정보 업데이트 (성별, 특수학급, 비고)
+ */
+export async function updateStudentInfo(
+  projectId: string,
+  classNumber: number,
+  studentId: string,
+  updates: {
+    gender?: 'male' | 'female';
+    specialNeeds?: string;
+    notes?: string;
+  }
+): Promise<void> {
+  try {
+    const rosterRef = doc(db, PROJECTS_COLLECTION, projectId, ROSTERS_SUBCOLLECTION, classNumber.toString());
+    const rosterSnap = await getDoc(rosterRef);
+
+    if (!rosterSnap.exists()) {
+      throw new Error('명단을 찾을 수 없습니다.');
+    }
+
+    const roster = rosterSnap.data() as ClassRoster;
+
+    // 확정된 명단은 수정 불가
+    if (roster.status === 'confirmed') {
+      throw new Error('확정된 명단은 수정할 수 없습니다.');
+    }
+
+    // 학생 찾기 및 업데이트
+    const studentIndex = roster.students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) {
+      throw new Error('학생을 찾을 수 없습니다.');
+    }
+
+    const updatedStudents = [...roster.students];
+    updatedStudents[studentIndex] = {
+      ...updatedStudents[studentIndex],
+      ...updates,
+    };
+
+    await updateDoc(rosterRef, {
+      students: updatedStudents,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('학생 정보 업데이트 실패:', error);
+    throw error;
+  }
+}
+
 // ============================================
 // 협업 프로젝트 설정 함수
 // ============================================
