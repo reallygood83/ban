@@ -149,8 +149,8 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
                     key={key}
                     onClick={() => setCurrentClassIndex(idx)}
                     className={`px-4 py-2 border-2 border-black font-bold transition-all ${currentClassIndex === idx
-                        ? 'bg-yellow-400 shadow-neo'
-                        : 'bg-white hover:bg-gray-50'
+                      ? 'bg-yellow-400 shadow-neo'
+                      : 'bg-white hover:bg-gray-50'
                       }`}
                   >
                     {grade}학년 {classNum}반
@@ -227,8 +227,8 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
                         <button
                           onClick={() => handleGenderChange(studentKey, 'male')}
                           className={`flex-1 py-1 text-sm border-2 border-black font-bold transition-all ${gender === 'male'
-                              ? 'bg-blue-200 shadow-neo-sm'
-                              : 'bg-white hover:bg-gray-50 opacity-50'
+                            ? 'bg-blue-200 shadow-neo-sm'
+                            : 'bg-white hover:bg-gray-50 opacity-50'
                             }`}
                         >
                           남
@@ -236,8 +236,8 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
                         <button
                           onClick={() => handleGenderChange(studentKey, 'female')}
                           className={`flex-1 py-1 text-sm border-2 border-black font-bold transition-all ${gender === 'female'
-                              ? 'bg-pink-200 shadow-neo-sm'
-                              : 'bg-white hover:bg-gray-50 opacity-50'
+                            ? 'bg-pink-200 shadow-neo-sm'
+                            : 'bg-white hover:bg-gray-50 opacity-50'
                             }`}
                         >
                           여
@@ -249,30 +249,34 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
                       </div>
 
                       {/* 특이사항 태그 선택 */}
-                      <div className="col-span-7 flex flex-wrap gap-1">
-                        {['쌍생아', '특수학급', '다문화', '기초학력', '영재', '건강유의'].map((tag) => (
-                          <button
-                            key={tag}
-                            onClick={() => toggleTag(tag)}
-                            className={`px-2 py-1 text-xs border border-black transition-all ${selectedTags.includes(tag)
-                                ? 'bg-yellow-300 font-bold shadow-neo-sm'
-                                : 'bg-white hover:bg-gray-50 text-gray-500'
-                              }`}
-                          >
-                            {tag}
-                          </button>
-                        ))}
-                        {/* 직접 입력 필드 */}
+                      <div className="col-span-7">
+                        <div className="flex flex-wrap gap-1 mb-1">
+                          {['쌍생아', '특수학급', '다문화', '기초학력', '영재', '건강유의'].map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={() => toggleTag(tag)}
+                              className={`px-2 py-1 text-xs border border-black transition-all ${selectedTags.includes(tag)
+                                  ? 'bg-yellow-300 font-bold shadow-neo-sm'
+                                  : 'bg-white hover:bg-gray-50 text-gray-500'
+                                }`}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                        {/* 직접 입력 필드 - 별도 줄에 배치하여 명확하게 표시 */}
                         <input
                           type="text"
-                          placeholder="기타 입력"
-                          className="px-2 py-1 text-xs border border-black min-w-[80px] flex-1"
+                          placeholder="기타 특이사항 직접 입력 (예: 교우관계 주의)"
+                          className="w-full px-2 py-1 text-xs border border-black bg-white focus:bg-yellow-50 transition-colors"
                           value={selectedTags.find(t => !['쌍생아', '특수학급', '다문화', '기초학력', '영재', '건강유의'].includes(t)) || ''}
                           onChange={(e) => {
                             const val = e.target.value;
                             const standardTags = selectedTags.filter(t => ['쌍생아', '특수학급', '다문화', '기초학력', '영재', '건강유의'].includes(t));
-                            if (val.trim()) {
-                              handleSpecialNeedsChange(studentKey, [...standardTags, val].join(','));
+                            // 콤마(,)는 구분자로 사용되므로 입력 방지 또는 변환
+                            const safeVal = val.replace(/,/g, ' ');
+                            if (safeVal.trim()) {
+                              handleSpecialNeedsChange(studentKey, [...standardTags, safeVal].join(','));
                             } else {
                               handleSpecialNeedsChange(studentKey, standardTags.join(','));
                             }
@@ -308,8 +312,8 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
               onClick={handleConfirm}
               disabled={!isAllGenderSet()}
               className={`neo-btn ${isAllGenderSet()
-                  ? 'neo-btn-primary'
-                  : 'bg-gray-300 cursor-not-allowed'
+                ? 'neo-btn-primary'
+                : 'bg-gray-300 cursor-not-allowed'
                 }`}
             >
               <Check className="w-5 h-5 inline mr-2" />
