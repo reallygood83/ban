@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Upload, Users, Check, AlertCircle, Download, UserPlus, Edit } from 'lucide-react';
+import { ArrowLeft, Upload, Users, Check, AlertCircle, Download, UserPlus, Edit, FileSpreadsheet, Info } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { updateProject } from '../services/projectService';
-import { parseStudentFile, validateStudentData } from '../lib/fileParser';
+import {
+  parseStudentFile,
+  validateStudentData,
+  detectCSVFormat,
+  parseRosterCSVFile,
+  validateRosterData,
+  convertRosterToStudentData,
+  getRosterSummary,
+  StudentRosterData
+} from '../lib/fileParser';
 import { encryptStudentDataBatch, generateStudentStats } from '../services/studentService';
 import { Student, StudentUploadData } from '../types';
 import AddStudentModal from '../components/AddStudentModal';
 import EditStudentModal from '../components/EditStudentModal';
+import GenderInputModal from '../components/GenderInputModal';
 
 const ManageStudents: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -23,6 +33,11 @@ const ManageStudents: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
+  // 명렬표 업로드 관련 상태
+  const [showGenderModal, setShowGenderModal] = useState(false);
+  const [pendingRosterData, setPendingRosterData] = useState<StudentRosterData[]>([]);
+  const [rosterSummary, setRosterSummary] = useState<ReturnType<typeof getRosterSummary> | null>(null);
+
   // 파일 업로드 핸들러
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,7 +49,44 @@ const ManageStudents: React.FC = () => {
     setUploadSuccess(false);
 
     try {
-      // 1. 파일 파싱
+      // CSV 파일인 경우 형식 감지
+      const extension = file.name.split('.').pop()?.toLowerCase();
+
+      if (extension === 'csv') {
+        const format = await detectCSVFormat(file);
+
+        if (format === 'roster') {
+          // 명렬표 형식 (학년, 반, 번호, 성명, 비고) - 성별 입력 필요
+          console.log('나이스 명렬표 형식 감지');
+          const rosterData = await parseRosterCSVFile(file);
+
+          // 검증
+          const validation = validateRosterData(rosterData);
+          if (!validation.valid) {
+            setUploadError(validation.errors.join('\n'));
+            setUploading(false);
+            e.target.value = '';
+            return;
+          }
+
+          if (validation.warnings.length > 0) {
+            setUploadWarnings(validation.warnings);
+          }
+
+          // 요약 정보 설정
+          const summary = getRosterSummary(rosterData);
+          setRosterSummary(summary);
+
+          // 성별 입력 모달 표시
+          setPendingRosterData(rosterData);
+          setShowGenderModal(true);
+          setUploading(false);
+          e.target.value = '';
+          return;
+        }
+      }
+
+      // 기존 형식 처리 (이름, 성별, 학번 등)
       console.log('파일 파싱 시작:', file.name);
       const uploadData: StudentUploadData[] = await parseStudentFile(file);
       console.log('파싱된 학생 수:', uploadData.length);
@@ -74,15 +126,73 @@ const ManageStudents: React.FC = () => {
       console.log('업로드 완료!');
     } catch (error) {
       console.error('파일 업로드 오류:', error);
-      setUploadError(
-        error instanceof Error
-          ? error.message
-          : '파일 업로드 중 오류가 발생했습니다.'
-      );
+
+      // 명렬표 형식 감지 에러 처리
+      if (error instanceof Error && error.message === 'ROSTER_FORMAT_DETECTED') {
+        setUploadError('명렬표 형식이 감지되었습니다. CSV 파일을 다시 업로드해주세요.');
+      } else {
+        setUploadError(
+          error instanceof Error
+            ? error.message
+            : '파일 업로드 중 오류가 발생했습니다.'
+        );
+      }
     } finally {
       setUploading(false);
       // 파일 input 초기화
       e.target.value = '';
+    }
+  };
+
+  // 명렬표 성별 입력 완료 핸들러
+  const handleGenderConfirm = async (genderMap: Map<string, 'male' | 'female'>) => {
+    if (!currentUser || !projectId) return;
+
+    setShowGenderModal(false);
+    setUploading(true);
+
+    try {
+      // 명렬표 데이터를 StudentUploadData로 변환
+      const uploadData = convertRosterToStudentData(pendingRosterData, genderMap);
+      console.log('변환된 학생 수:', uploadData.length);
+
+      // 데이터 검증
+      const validation = validateStudentData(uploadData);
+      if (validation.warnings.length > 0) {
+        setUploadWarnings(prev => [...prev, ...validation.warnings]);
+      }
+
+      // 데이터 암호화
+      console.log('학생 데이터 암호화 시작...');
+      const encryptedStudents = await encryptStudentDataBatch(uploadData, currentUser.uid);
+      console.log('암호화 완료:', encryptedStudents.length);
+
+      // Firebase에 저장
+      console.log('Firebase 저장 시작...');
+      await updateProject(projectId, {
+        students: encryptedStudents,
+        status: 'in-progress'
+      });
+
+      setStudents(encryptedStudents);
+      setUploadSuccess(true);
+      setPendingRosterData([]);
+      setRosterSummary(null);
+
+      setTimeout(() => {
+        setUploadSuccess(false);
+      }, 3000);
+
+      console.log('업로드 완료!');
+    } catch (error) {
+      console.error('명렬표 업로드 오류:', error);
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : '명렬표 업로드 중 오류가 발생했습니다.'
+      );
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -248,6 +358,22 @@ const ManageStudents: React.FC = () => {
                 </div>
               )}
 
+              {/* 나이스 명렬표 안내 */}
+              <div className="bg-green-50 border-2 border-green-400 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <FileSpreadsheet className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-green-800 mb-2">📋 나이스(NEIS) 명렬표 업로드 안내</p>
+                    <ul className="text-sm text-green-700 space-y-1">
+                      <li>• <strong>나이스 학생 명렬표</strong>를 그대로 업로드하면 자동으로 인식됩니다.</li>
+                      <li>• 명렬표 형식: <code className="bg-green-100 px-1 rounded">학년, 반, 번호, 성명, 비고</code></li>
+                      <li>• 업로드 후 <strong>성별만 추가 입력</strong>하면 됩니다. (반별 일괄 선택 가능)</li>
+                      <li>• 여러 학급을 <strong>하나의 파일</strong>로 업로드하거나, <strong>반별로 따로</strong> 업로드할 수 있습니다.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
               {/* 보안 안내 */}
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
                 <p className="text-sm font-semibold text-blue-800">
@@ -412,6 +538,18 @@ const ManageStudents: React.FC = () => {
           setSelectedStudent(null);
         }}
         onSave={handleEditStudent}
+      />
+
+      {/* 명렬표 성별 입력 모달 */}
+      <GenderInputModal
+        isOpen={showGenderModal}
+        onClose={() => {
+          setShowGenderModal(false);
+          setPendingRosterData([]);
+          setRosterSummary(null);
+        }}
+        rosterData={pendingRosterData}
+        onConfirm={handleGenderConfirm}
       />
     </div>
   );
