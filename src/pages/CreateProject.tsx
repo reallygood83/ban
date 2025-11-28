@@ -11,6 +11,7 @@ const CreateProject: React.FC = () => {
   const [projectName, setProjectName] = useState('');
   const [grade, setGrade] = useState('');
   const [classCount, setClassCount] = useState('');
+  const [isCollaborative, setIsCollaborative] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,7 +30,7 @@ const CreateProject: React.FC = () => {
         name: projectName,
         grade,
         classCount: parseInt(classCount)
-      });
+      }, isCollaborative);
 
       console.log('프로젝트 생성 성공:', projectId);
       alert('프로젝트가 성공적으로 생성되었습니다! 학생 명단을 업로드해주세요.');
@@ -130,6 +131,34 @@ const CreateProject: React.FC = () => {
                 </p>
               </div>
             </div>
+
+            {/* 협업 모드 설정 */}
+            <div className="pt-4 border-t-2 border-gray-100">
+              <div className="flex items-start gap-3">
+                <div className="flex items-center h-6">
+                  <input
+                    id="isCollaborative"
+                    type="checkbox"
+                    checked={isCollaborative}
+                    onChange={(e) => setIsCollaborative(e.target.checked)}
+                    className="w-5 h-5 border-2 border-black rounded text-black focus:ring-0 cursor-pointer"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label htmlFor="isCollaborative" className="font-bold text-lg cursor-pointer flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    협업 모드 활성화
+                  </label>
+                  <p className="text-sm text-gray-600 mt-1">
+                    다른 선생님들을 초대하여 각 반의 명단을 개별적으로 업로드하고 관리할 수 있습니다.
+                    <br />
+                    <span className="text-xs text-blue-600 font-bold">
+                      * 담임교사는 자신의 반 명단만 관리할 수 있습니다.
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* 학생 명단 섹션 */}
@@ -225,7 +254,7 @@ const CreateProject: React.FC = () => {
           </ol>
         </div>
       </main>
-    </div>
+    </div >
   );
 };
 

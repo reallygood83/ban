@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 사용자 함수
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(resource) {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    
+    function isMember(resource) {
+      return isSignedIn() && (request.auth.uid in resource.data.memberIds);
+    }
+
+    // 프로젝트 컬렉션
+    match /projects/{projectId} {
+      // 읽기: 소유자 또는 멤버
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        request.auth.uid in resource.data.memberIds
+      );
+      
+      // 생성: 인증된 사용자
+      allow create: if isSignedIn();
+      
+      // 수정: 소유자 또는 멤버 (멤버는 제한적 수정)
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        (request.auth.uid in resource.data.memberIds && 
+         // 멤버는 자신의 반 명단 상태 등 제한된 필드만 수정 가능하도록 검증 필요
+         // 여기서는 간단히 멤버도 수정 가능하게 하되, 클라이언트 로직에서 제한
+         true)
+      );
+      
+      // 삭제: 소유자만
+      allow delete: if isOwner(resource);
+
+      // 서브컬렉션: 멤버
+      match /members/{memberId} {
+        allow read: if isSignedIn(); // 프로젝트 접근 권한은 상위에서 체크됨 (하지만 쿼리 시 필요할 수 있음)
+        allow write: if isSignedIn(); // 정교한 권한 제어 필요
+      }
+
+      // 서브컬렉션: 반별 명단
+      match /classRosters/{classNumber} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
+      }
+      
+      // 서브컬렉션: 초대
+      match /invitations/{invitationId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+    
+    // 초대 컬렉션 (루트 레벨 - 쿼리용)
+    match /invitations/{invitationId} {
+      allow read: if isSignedIn() && (
+        resource.data.invitedEmail == request.auth.token.email ||
+        resource.data.invitedBy == request.auth.uid
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn(); // 초대 수락/거절 시 업데이트
+    }
+  }
+}

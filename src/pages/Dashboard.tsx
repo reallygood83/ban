@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { getUserProjects, deleteProject } from '../services/projectService';
-import { Project } from '../types';
-import { Pencil, Trash2, FolderOpen } from 'lucide-react';
+import { getUserProjectListItems, deleteProject } from '../services/projectService';
+import { ProjectListItem } from '../types';
+import { Pencil, Trash2, FolderOpen, KeyRound } from 'lucide-react';
+import { PendingInvitations, CollaborationStatus, JoinByCodeModal } from '../components/collaboration';
 
 const Dashboard: React.FC = () => {
   const { currentUser, signOut } = useAuth();
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
   // 프로젝트 목록 로드
   useEffect(() => {
@@ -17,7 +19,7 @@ const Dashboard: React.FC = () => {
       if (!currentUser) return;
 
       try {
-        const userProjects = await getUserProjects(currentUser.uid);
+        const userProjects = await getUserProjectListItems(currentUser.uid);
         setProjects(userProjects);
       } catch (error) {
         console.error('프로젝트 로드 오류:', error);
@@ -93,7 +95,9 @@ const Dashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <PendingInvitations />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* 새 프로젝트 시작 */}
           <div
             className="neo-card-hover cursor-pointer"
@@ -135,6 +139,19 @@ const Dashboard: React.FC = () => {
               <p className="text-gray-600">Excel 파일을 불러옵니다</p>
             </div>
           </div>
+          {/* 초대 코드로 참여 */}
+          <div
+            className="neo-card-hover cursor-pointer"
+            onClick={() => setIsJoinModalOpen(true)}
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-400 border-2 border-black rounded-full flex items-center justify-center mx-auto mb-4">
+                <KeyRound className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="font-bold text-xl mb-2">초대 코드로 참여</h3>
+              <p className="text-gray-600">코드를 입력하여 참여합니다</p>
+            </div>
+          </div>
         </div>
 
         {/* 최근 프로젝트 */}
@@ -172,9 +189,16 @@ const Dashboard: React.FC = () => {
                           <span className="font-semibold">반 수:</span> {project.classCount}개
                         </p>
                         <p className="text-sm text-gray-600">
-                          <span className="font-semibold">학생 수:</span> {project.students?.length || 0}명
+                          <span className="font-semibold">학생 수:</span> {project.studentCount}명
                         </p>
                       </div>
+
+                      <CollaborationStatus
+                        isCollaborative={project.isCollaborative}
+                        memberCount={project.memberCount}
+                        myRole={project.myRole}
+                        className="mt-2"
+                      />
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -196,13 +220,12 @@ const Dashboard: React.FC = () => {
 
                   <div className="border-t-2 border-gray-200 pt-3 mt-3">
                     <div className="flex justify-between items-center text-sm">
-                      <span className={`px-3 py-1 rounded-full font-semibold ${
-                        project.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      <span className={`px-3 py-1 rounded-full font-semibold ${project.status === 'completed' ? 'bg-green-100 text-green-700' :
                         project.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
+                          'bg-gray-100 text-gray-700'
+                        }`}>
                         {project.status === 'completed' ? '완료' :
-                         project.status === 'in-progress' ? '진행중' : '대기'}
+                          project.status === 'in-progress' ? '진행중' : '대기'}
                       </span>
                       <span className="text-gray-500">
                         {new Date(project.updatedAt).toLocaleDateString('ko-KR')}
@@ -226,8 +249,13 @@ const Dashboard: React.FC = () => {
             <li className="font-medium">AI 추천을 받거나 직접 배정 방법을 선택하세요</li>
           </ol>
         </div>
-      </main>
-    </div>
+      </main >
+
+      <JoinByCodeModal
+        isOpen={isJoinModalOpen}
+        onClose={() => setIsJoinModalOpen(false)}
+      />
+    </div >
   );
 };
 
