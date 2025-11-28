@@ -5,35 +5,37 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isOwner(resource) {
       return isSignedIn() && resource.data.userId == request.auth.uid;
     }
-    
+
+    // memberIds 필드가 존재하고 사용자가 멤버인지 확인
     function isMember(resource) {
-      return isSignedIn() && (request.auth.uid in resource.data.memberIds);
+      return isSignedIn() &&
+        resource.data.memberIds != null &&
+        (request.auth.uid in resource.data.memberIds);
+    }
+
+    // 소유자 또는 멤버인지 확인 (memberIds가 없어도 소유자는 접근 가능)
+    function hasProjectAccess(resource) {
+      return isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.memberIds != null && request.auth.uid in resource.data.memberIds)
+      );
     }
 
     // 프로젝트 컬렉션
     match /projects/{projectId} {
       // 읽기: 소유자 또는 멤버
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || 
-        request.auth.uid in resource.data.memberIds
-      );
-      
+      allow read: if hasProjectAccess(resource);
+
       // 생성: 인증된 사용자
       allow create: if isSignedIn();
-      
+
       // 수정: 소유자 또는 멤버 (멤버는 제한적 수정)
-      allow update: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || 
-        (request.auth.uid in resource.data.memberIds && 
-         // 멤버는 자신의 반 명단 상태 등 제한된 필드만 수정 가능하도록 검증 필요
-         // 여기서는 간단히 멤버도 수정 가능하게 하되, 클라이언트 로직에서 제한
-         true)
-      );
-      
+      allow update: if hasProjectAccess(resource);
+
       // 삭제: 소유자만
       allow delete: if isOwner(resource);
 

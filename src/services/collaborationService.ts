@@ -117,6 +117,10 @@ export async function addProjectMember(
     invitedBy?: string;
   }
 ): Promise<string> {
+  console.log('=== addProjectMember 시작 ===');
+  console.log('projectId:', projectId);
+  console.log('memberData:', JSON.stringify(memberData, null, 2));
+
   try {
     const batch = writeBatch(db);
 
@@ -152,8 +156,12 @@ export async function addProjectMember(
     });
 
     await batch.commit();
+    console.log('=== addProjectMember 성공 ===');
+    console.log('memberId:', memberDoc.id);
+    console.log('memberIds에 추가된 userId:', memberData.userId);
     return memberDoc.id;
   } catch (error) {
+    console.error('=== addProjectMember 실패 ===');
     console.error('멤버 추가 실패:', error);
     throw new Error('멤버 추가에 실패했습니다.');
   }
@@ -408,6 +416,11 @@ export async function acceptInvitation(
   displayName: string,
   photoURL?: string
 ): Promise<InvitationResponse> {
+  console.log('=== acceptInvitation 시작 ===');
+  console.log('invitationId:', invitationId);
+  console.log('userId:', userId);
+  console.log('displayName:', displayName);
+
   try {
     const invitationRef = doc(db, INVITATIONS_COLLECTION, invitationId);
     const invitationSnap = await getDoc(invitationRef);

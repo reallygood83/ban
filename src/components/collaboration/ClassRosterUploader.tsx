@@ -1,10 +1,19 @@
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { Upload, FileSpreadsheet, Check, AlertCircle, X, Save, Trash2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, Check, AlertCircle, X, Save, Trash2, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { saveClassRoster } from '../../services/collaborationService';
 import { encryptStudentDataBatch } from '../../services/studentService';
 import { StudentUploadData } from '../../types';
+
+// 특수 태그 옵션 정의
+const SPECIAL_TAG_OPTIONS = [
+    { value: 'special_class', label: '특수학급', color: 'bg-purple-100 text-purple-800' },
+    { value: 'multicultural', label: '다문화', color: 'bg-green-100 text-green-800' },
+    { value: 'basic_learning', label: '기초학력', color: 'bg-orange-100 text-orange-800' },
+    { value: 'gifted', label: '영재', color: 'bg-blue-100 text-blue-800' },
+    { value: 'health_issue', label: '건강유의', color: 'bg-red-100 text-red-800' },
+];
 
 interface ClassRosterUploaderProps {
     projectId: string;
@@ -256,30 +265,110 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                         </button>
                     </div>
 
-                    <div className="max-h-60 overflow-y-auto border-2 border-black">
+                    {/* 성별 일괄 선택 버튼 */}
+                    <div className="bg-blue-50 border-2 border-black p-4 mb-4">
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <span className="font-bold flex items-center gap-2">
+                                <Users className="w-5 h-5" />
+                                성별 일괄 선택:
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPreviewData(prev => prev.map(s => ({ ...s, gender: 'male' })));
+                                }}
+                                className="neo-btn bg-blue-200 hover:bg-blue-300 text-sm py-2 px-4"
+                            >
+                                👦 전체 남자
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPreviewData(prev => prev.map(s => ({ ...s, gender: 'female' })));
+                                }}
+                                className="neo-btn bg-pink-200 hover:bg-pink-300 text-sm py-2 px-4"
+                            >
+                                👧 전체 여자
+                            </button>
+                            <span className="text-sm text-gray-600">
+                                또는 아래 표에서 개별 수정
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="max-h-96 overflow-y-auto border-2 border-black">
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-gray-100 sticky top-0 z-10">
                                 <tr>
                                     <th className="p-3 border-b-2 border-black font-bold">이름</th>
                                     <th className="p-3 border-b-2 border-black font-bold">성별</th>
                                     <th className="p-3 border-b-2 border-black font-bold">학번</th>
-                                    <th className="p-3 border-b-2 border-black font-bold">특이사항</th>
+                                    <th className="p-3 border-b-2 border-black font-bold min-w-[300px]">특수태그</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {previewData.map((student, idx) => (
                                     <tr key={idx} className="border-b border-gray-200 hover:bg-yellow-50">
-                                        <td className="p-3">{student.name}</td>
+                                        <td className="p-3 font-medium">{student.name}</td>
                                         <td className="p-3">
-                                            <span className={`
-                        px-2 py-1 text-xs font-bold border border-black
-                        ${student.gender === 'male' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}
-                      `}>
-                                                {student.gender}
-                                            </span>
+                                            <select
+                                                value={student.gender || ''}
+                                                onChange={(e) => {
+                                                    const newData = [...previewData];
+                                                    newData[idx] = { ...newData[idx], gender: e.target.value as 'male' | 'female' };
+                                                    setPreviewData(newData);
+                                                }}
+                                                className={`px-2 py-1 text-sm font-bold border-2 border-black cursor-pointer ${
+                                                    student.gender === 'male' ? 'bg-blue-100' :
+                                                    student.gender === 'female' ? 'bg-pink-100' : 'bg-yellow-100'
+                                                }`}
+                                            >
+                                                <option value="">선택</option>
+                                                <option value="male">👦 남</option>
+                                                <option value="female">👧 여</option>
+                                            </select>
                                         </td>
                                         <td className="p-3 text-gray-600">{student.studentNumber || '-'}</td>
-                                        <td className="p-3 text-gray-600 truncate max-w-[200px]">{student.specialNeeds || '-'}</td>
+                                        <td className="p-3">
+                                            <div className="flex flex-wrap gap-1">
+                                                {SPECIAL_TAG_OPTIONS.map((tag) => {
+                                                    const isSelected = student.specialTags?.includes(tag.value);
+                                                    return (
+                                                        <label
+                                                            key={tag.value}
+                                                            className={`
+                                                                inline-flex items-center gap-1 px-2 py-1 text-xs font-bold
+                                                                border-2 border-black cursor-pointer transition-all
+                                                                ${isSelected ? tag.color + ' shadow-neo-sm' : 'bg-gray-50 hover:bg-gray-100'}
+                                                            `}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isSelected || false}
+                                                                onChange={(e) => {
+                                                                    const newData = [...previewData];
+                                                                    const currentTags = newData[idx].specialTags || [];
+                                                                    if (e.target.checked) {
+                                                                        newData[idx] = {
+                                                                            ...newData[idx],
+                                                                            specialTags: [...currentTags, tag.value]
+                                                                        };
+                                                                    } else {
+                                                                        newData[idx] = {
+                                                                            ...newData[idx],
+                                                                            specialTags: currentTags.filter(t => t !== tag.value)
+                                                                        };
+                                                                    }
+                                                                    setPreviewData(newData);
+                                                                }}
+                                                                className="w-3 h-3"
+                                                            />
+                                                            {tag.label}
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

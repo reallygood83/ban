@@ -109,6 +109,9 @@ export const createProject = async (
  * @returns 프로젝트 목록 (소유 프로젝트 + 협업 프로젝트)
  */
 export const getUserProjects = async (userId: string): Promise<Project[]> => {
+  console.log('=== getUserProjects 시작 ===');
+  console.log('userId:', userId);
+
   try {
     // 1. 사용자가 소유한 프로젝트 쿼리
     const ownerQuery = query(
@@ -128,6 +131,9 @@ export const getUserProjects = async (userId: string): Promise<Project[]> => {
       getDocs(ownerQuery),
       getDocs(memberQuery)
     ]);
+
+    console.log('소유 프로젝트 수:', ownerSnapshot.size);
+    console.log('멤버 프로젝트 수:', memberSnapshot.size);
 
     const projectsMap = new Map<string, Project>();
 
