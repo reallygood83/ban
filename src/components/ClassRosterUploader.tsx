@@ -467,6 +467,39 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                   })()}
                 </div>
 
+                {/* 일괄 성별 설정 버튼 */}
+                <div className="flex gap-3 items-center">
+                  <span className="font-bold text-gray-700">성별 일괄 설정:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newStudents = uploadedStudents.map(student => ({
+                        ...student,
+                        gender: 'male' as const
+                      }));
+                      setUploadedStudents(newStudents);
+                    }}
+                    className="neo-btn bg-cyan-200 border-cyan-400 hover:bg-cyan-300 flex items-center gap-2"
+                  >
+                    <span>👦</span>
+                    <span>모두 남학생으로 설정</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newStudents = uploadedStudents.map(student => ({
+                        ...student,
+                        gender: 'female' as const
+                      }));
+                      setUploadedStudents(newStudents);
+                    }}
+                    className="neo-btn bg-pink-200 border-pink-400 hover:bg-pink-300 flex items-center gap-2"
+                  >
+                    <span>👧</span>
+                    <span>모두 여학생으로 설정</span>
+                  </button>
+                </div>
+
                 {/* Preview Table - Editable */}
                 <div className="border-2 border-black rounded-lg overflow-hidden">
                   <div className="max-h-96 overflow-y-auto">
