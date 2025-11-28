@@ -34,15 +34,26 @@ export async function encryptStudentData(
       gender = 'female';
     }
 
-    return {
+    // Firebase는 undefined 값을 허용하지 않으므로 필터링
+    const student: Student = {
       id: `student_${Date.now()}_${index}`,
       encryptedName,
       displayName,
-      gender,
-      maskedStudentNumber,
-      specialNeeds: uploadData.specialNeeds,
-      notes: uploadData.notes
+      gender
     };
+
+    // undefined가 아닌 값만 추가
+    if (maskedStudentNumber) {
+      student.maskedStudentNumber = maskedStudentNumber;
+    }
+    if (uploadData.specialNeeds) {
+      student.specialNeeds = uploadData.specialNeeds;
+    }
+    if (uploadData.notes) {
+      student.notes = uploadData.notes;
+    }
+
+    return student;
   } catch (error) {
     console.error('학생 데이터 암호화 실패:', error);
     throw new Error(`${uploadData.name} 학생의 데이터 암호화에 실패했습니다.`);
