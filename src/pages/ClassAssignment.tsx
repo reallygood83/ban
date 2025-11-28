@@ -48,8 +48,33 @@ const ClassAssignmentPage: React.FC = () => {
 
         // 이미 배정 결과가 있으면 표시
         if (projectData.assignments && projectData.assignments.length > 0) {
-          setAssignments(projectData.assignments);
-          const score = calculateBalanceScore(projectData.assignments);
+          // ClassAssignment를 AIClassAssignment로 변환
+          const aiAssignments: AIClassAssignment[] = projectData.assignments.map(assignment => {
+            // 이미 AIClassAssignment 형식이면 그대로 반환
+            if ('warnings' in assignment && 'balance' in assignment) {
+              return assignment as AIClassAssignment;
+            }
+
+            // ClassAssignment를 AIClassAssignment로 변환
+            return {
+              ...assignment,
+              warnings: [],
+              balance: {
+                classNumber: assignment.classNumber,
+                totalStudents: assignment.students.length,
+                maleCount: assignment.maleCount,
+                femaleCount: assignment.femaleCount,
+                specialNeedsCount: assignment.specialNeedsCount,
+                genderRatio: assignment.students.length > 0 ? assignment.maleCount / assignment.students.length : 0,
+                balanceScore: 0,
+              },
+              constraintsSatisfied: 0,
+              constraintsViolated: 0,
+            };
+          });
+
+          setAssignments(aiAssignments);
+          const score = calculateBalanceScore(aiAssignments);
           setBalanceScore(score);
         }
       } catch (error) {

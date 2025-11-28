@@ -102,25 +102,25 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
       // 데이터 검증 및 변환
       const students: StudentUploadData[] = jsonData.map((row, index) => {
         const name = row['이름'] || row['name'] || row['학생이름'];
-        let gender = row['성별'] || row['gender'];
+        let genderRaw = row['성별'] || row['gender'];
+        let gender: 'male' | 'female';
 
         // 성별 정규화
-        if (gender === '남' || gender === 'M' || gender === 'male') {
+        if (genderRaw === '남' || genderRaw === 'M' || genderRaw === 'male') {
           gender = 'male';
-        } else if (gender === '여' || gender === 'F' || gender === 'female') {
+        } else if (genderRaw === '여' || genderRaw === 'F' || genderRaw === 'female') {
           gender = 'female';
+        } else {
+          throw new Error(`${index + 1}번째 행: 성별이 올바르지 않습니다. (남/여 또는 male/female)`);
         }
 
         if (!name) {
           throw new Error(`${index + 1}번째 행: 이름이 없습니다.`);
         }
-        if (!gender || (gender !== 'male' && gender !== 'female')) {
-          throw new Error(`${index + 1}번째 행: 성별이 올바르지 않습니다. (남/여 또는 male/female)`);
-        }
 
         return {
           name: String(name).trim(),
-          gender: gender as 'male' | 'female',
+          gender,
           studentNumber: row['학번'] || row['studentNumber'] ? String(row['학번'] || row['studentNumber']) : undefined,
           specialNeeds: row['비고'] || row['특수사항'] || row['specialNeeds'] ? String(row['비고'] || row['특수사항'] || row['specialNeeds']) : undefined,
           notes: row['참고사항'] || row['notes'] ? String(row['참고사항'] || row['notes']) : undefined,
@@ -195,11 +195,21 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
           const encryptedName = await encryptStudentName(student.name, currentUserId);
           const displayName = maskName(student.name);
 
+          // 성별 정규화 (StudentUploadData는 '남'/'여'를 포함할 수 있음)
+          let gender: 'male' | 'female';
+          if (student.gender === '남' || student.gender === 'male') {
+            gender = 'male';
+          } else if (student.gender === '여' || student.gender === 'female') {
+            gender = 'female';
+          } else {
+            throw new Error(`잘못된 성별 값: ${student.gender}`);
+          }
+
           return {
             id,
             encryptedName,
             displayName,
-            gender: student.gender as 'male' | 'female',
+            gender,
             maskedStudentNumber: student.studentNumber,
             specialNeeds: student.specialNeeds,
             notes: student.notes,
