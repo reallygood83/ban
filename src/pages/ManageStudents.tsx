@@ -31,6 +31,24 @@ import { getProjectWithAccess } from '../services/projectService';
 import { getAllClassRosters, saveMergedStudentsToProject, subscribeToClassRosters } from '../services/collaborationService';
 import { ProjectRole, ClassRoster, Project } from '../types';
 
+// 특수태그 값을 한글 라벨로 변환하는 매핑
+const SPECIAL_TAG_LABELS: Record<string, string> = {
+  special_class: '특수학급',
+  multicultural: '다문화',
+  basic_learning: '기초학력',
+  gifted: '영재',
+  health_issue: '건강유의',
+  twins: '쌍생아',
+  transfer: '전학',
+  other: '기타',
+};
+
+// 특수태그 배열을 한글 라벨로 변환
+const formatSpecialTags = (tags: string[] | undefined): string[] => {
+  if (!tags || tags.length === 0) return [];
+  return tags.map(tag => SPECIAL_TAG_LABELS[tag] || tag);
+};
+
 const ManageStudents: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -496,7 +514,15 @@ const ManageStudents: React.FC = () => {
                               <td className="p-2">{s.displayName}</td>
                               <td className="p-2">{s.gender === 'male' ? '남' : '여'}</td>
                               <td className="p-2">{s.maskedStudentNumber || '-'}</td>
-                              <td className="p-2 truncate max-w-[150px]">{s.specialNeeds || '-'}</td>
+                              <td className="p-2 truncate max-w-[150px]">
+                                {(() => {
+                                  const parts: string[] = [];
+                                  if (s.specialNeeds) parts.push(s.specialNeeds);
+                                  if (s.specialTags && s.specialTags.length > 0) parts.push(...formatSpecialTags(s.specialTags));
+                                  if (s.customTag) parts.push(s.customTag);
+                                  return parts.length > 0 ? parts.join(', ') : '-';
+                                })()}
+                              </td>
                             </tr>
                           ))}
                         </tbody>

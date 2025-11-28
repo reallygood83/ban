@@ -13,6 +13,7 @@ const SPECIAL_TAG_OPTIONS = [
     { value: 'basic_learning', label: '기초학력', color: 'bg-orange-100 text-orange-800' },
     { value: 'gifted', label: '영재', color: 'bg-blue-100 text-blue-800' },
     { value: 'health_issue', label: '건강유의', color: 'bg-red-100 text-red-800' },
+    { value: 'twins', label: '쌍생아', color: 'bg-pink-100 text-pink-800' },
     { value: 'transfer', label: '전학', color: 'bg-yellow-100 text-yellow-800' },
     { value: 'other', label: '기타', color: 'bg-gray-100 text-gray-800' },
 ];
@@ -95,16 +96,60 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                     jsonData = XLSX.utils.sheet_to_json(sheet);
                 }
 
-                const parsedData: StudentUploadData[] = jsonData.map((row: any) => {
-                    // 다양한 컬럼명 지원
-                    const name = row['이름'] || row['성명'] || row['Name'] || row['name'] || row['학생명'];
-                    const gender = row['성별'] || row['Gender'] || row['gender'];
-                    const studentNumber = row['학번'] || row['번호'] || row['Student Number'] || row['student_number'] || row['No'];
-                    const specialNeeds = row['특이사항'] || row['Special Needs'] || row['special_needs'];
-                    const notes = row['비고'] || row['Notes'] || row['notes'] || row['특기사항'];
+                // 🔍 디버그: Excel 파일의 컬럼명 확인
+                if (jsonData.length > 0) {
+                    const excelColumns = Object.keys(jsonData[0]);
+                    console.log('[ClassRosterUploader] Excel 컬럼명:', excelColumns);
+                    console.log('[ClassRosterUploader] 첫 번째 행 원본 데이터:', jsonData[0]);
+                }
+
+                const parsedData: StudentUploadData[] = jsonData.map((row: any, idx: number) => {
+                    // 다양한 컬럼명 지원 (공백 포함, trim 적용)
+                    const rowKeys = Object.keys(row);
+
+                    // 컬럼명에서 공백 제거 후 매칭을 위한 헬퍼 함수
+                    const findColumn = (variants: string[]): string | undefined => {
+                        for (const variant of variants) {
+                            // 정확히 일치하는 키 찾기
+                            const exactMatch = rowKeys.find(key => key === variant);
+                            if (exactMatch && row[exactMatch] !== undefined && row[exactMatch] !== '') {
+                                return row[exactMatch];
+                            }
+                            // 공백 제거 후 일치하는 키 찾기
+                            const trimmedMatch = rowKeys.find(key => key.trim() === variant.trim());
+                            if (trimmedMatch && row[trimmedMatch] !== undefined && row[trimmedMatch] !== '') {
+                                return row[trimmedMatch];
+                            }
+                        }
+                        return undefined;
+                    };
+
+                    const name = findColumn(['이름', '성명', 'Name', 'name', '학생명']);
+                    const rawGender = findColumn(['성별', 'Gender', 'gender']);
+                    const studentNumber = findColumn(['학번', '번호', 'Student Number', 'student_number', 'No', '출석번호']);
+                    const specialNeeds = findColumn(['특이사항', 'Special Needs', 'special_needs', '특수사항', '비고']);
+                    const notes = findColumn(['비고', 'Notes', 'notes', '특기사항', '메모']);
+
+                    // 성별 정규화: 다양한 형식 지원
+                    const normalizeGender = (g: string | undefined): 'male' | 'female' | undefined => {
+                        if (!g) return undefined;
+                        const lower = g.toLowerCase().trim();
+                        if (['남', '남자', 'male', 'm', '남성'].includes(lower)) return 'male';
+                        if (['여', '여자', 'female', 'f', '여성'].includes(lower)) return 'female';
+                        return undefined;
+                    };
+                    const gender = normalizeGender(rawGender);
+
+                    // 🔍 디버그: 첫 5개 학생의 파싱 결과 확인
+                    if (idx < 5) {
+                        console.log(`[ClassRosterUploader] 학생 ${idx + 1} 파싱:`, {
+                            rawRow: row,
+                            parsed: { name, rawGender, gender, studentNumber, specialNeeds, notes }
+                        });
+                    }
 
                     return {
-                        name,
+                        name: name || '',
                         gender,
                         studentNumber,
                         specialNeeds,
@@ -139,17 +184,19 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
         setError(null);
 
         try {
-            // 성별이 없는 학생들은 기본값 설정, specialTags와 customTag 명시적 포함
+            // 성별이 없는 학생들은 기본값 설정, specialNeeds, specialTags, customTag 모두 명시적 포함
             const dataToUpload = previewData.map(student => ({
                 ...student,
                 gender: student.gender || 'male', // 기본값 (나중에 수정 가능)
-                specialTags: student.specialTags || [], // 특수태그 명시적 포함
-                customTag: student.customTag || undefined // 기타 태그 명시적 포함
+                specialNeeds: student.specialNeeds || undefined, // 엑셀에서 파싱된 특이사항 (필수!)
+                specialTags: student.specialTags || [], // UI에서 선택한 특수태그
+                customTag: student.customTag || undefined // 기타 태그 (사용자 직접 입력)
             }));
 
-            // 디버그 로그: 업로드 전 데이터 확인
+            // 디버그 로그: 업로드 전 데이터 확인 (specialNeeds 포함!)
             console.log('[ClassRosterUploader] 업로드할 데이터:', dataToUpload.map(s => ({
                 name: s.name,
+                specialNeeds: s.specialNeeds,  // 엑셀에서 파싱된 특이사항
                 specialTags: s.specialTags,
                 customTag: s.customTag
             })));
