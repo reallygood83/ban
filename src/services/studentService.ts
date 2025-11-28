@@ -15,30 +15,38 @@ export async function encryptStudentData(
   index: number
 ): Promise<Student> {
   try {
+    // 데이터 타입 안전성 확보 (문자열 변환)
+    const safeName = String(uploadData.name || '');
+    const safeStudentNumber = uploadData.studentNumber ? String(uploadData.studentNumber) : undefined;
+    const safeGender = uploadData.gender; // 이미 검증됨
+
+    if (!safeName) {
+      throw new Error('학생 이름이 없습니다.');
+    }
+
     // 이름 암호화
-    const encryptedName = await encryptStudentName(uploadData.name, userId);
+    const encryptedName = await encryptStudentName(safeName, userId);
 
     // 표시용 마스킹된 이름 생성
-    const displayName = maskName(uploadData.name);
+    const displayName = maskName(safeName);
 
     // 학번 마스킹 (있는 경우)
-    const maskedStudentNumber = uploadData.studentNumber
-      ? maskStudentNumber(uploadData.studentNumber)
+    const maskedStudentNumber = safeStudentNumber
+      ? maskStudentNumber(safeStudentNumber)
       : undefined;
 
     // 성별은 파싱 단계에서 이미 'male' | 'female'로 정규화됨
     // uploadData.gender는 항상 존재해야 함 (validation 통과)
-    if (!uploadData.gender) {
-      throw new Error(`학생 ${uploadData.name}의 성별 정보가 없습니다.`);
+    if (!safeGender) {
+      throw new Error(`학생 ${safeName}의 성별 정보가 없습니다.`);
     }
-    const gender = uploadData.gender;
 
     // Firebase는 undefined 값을 허용하지 않으므로 필터링
     const student: Student = {
       id: `student_${Date.now()}_${index}`,
       encryptedName,
       displayName,
-      gender
+      gender: safeGender
     };
 
     // undefined가 아닌 값만 추가

@@ -148,11 +148,10 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
                   <button
                     key={key}
                     onClick={() => setCurrentClassIndex(idx)}
-                    className={`px-4 py-2 border-2 border-black font-bold transition-all ${
-                      currentClassIndex === idx
+                    className={`px-4 py-2 border-2 border-black font-bold transition-all ${currentClassIndex === idx
                         ? 'bg-yellow-400 shadow-neo'
                         : 'bg-white hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     {grade}학년 {classNum}반
                     {isComplete && <Check className="w-4 h-4 inline ml-1 text-green-600" />}
@@ -187,85 +186,98 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="space-y-2">
+                {/* 헤더 행 */}
+                <div className="grid grid-cols-12 gap-2 font-bold bg-gray-100 p-2 border-2 border-black text-center items-center">
+                  <div className="col-span-2">이름</div>
+                  <div className="col-span-2">성별</div>
+                  <div className="col-span-1">학번</div>
+                  <div className="col-span-7">특이사항 (중복 선택 가능)</div>
+                </div>
+
                 {currentStudents.map((student) => {
                   const studentKey = `${student.grade}-${student.classNumber}-${student.number}`;
                   const gender = genderMap.get(studentKey);
-                  const specialNeeds = specialNeedsMap.get(studentKey) || '';
+                  const specialNeedsStr = specialNeedsMap.get(studentKey) || '';
+                  const selectedTags = specialNeedsStr ? specialNeedsStr.split(',').filter(Boolean) : [];
+
+                  const toggleTag = (tag: string) => {
+                    let newTags;
+                    if (selectedTags.includes(tag)) {
+                      newTags = selectedTags.filter(t => t !== tag);
+                    } else {
+                      newTags = [...selectedTags, tag];
+                    }
+                    handleSpecialNeedsChange(studentKey, newTags.join(','));
+                  };
 
                   return (
                     <div
                       key={studentKey}
-                      className={`border-2 border-black p-3 ${
-                        gender ? 'bg-gray-50' : 'bg-yellow-50'
-                      }`}
+                      className={`grid grid-cols-12 gap-2 p-2 border-2 border-black items-center ${gender ? 'bg-white' : 'bg-yellow-50'
+                        }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold">
-                          {student.number}번 {student.name}
-                        </span>
-                        {!gender && (
-                          <AlertCircle className="w-4 h-4 text-yellow-600" />
-                        )}
+                      <div className="col-span-2 font-bold text-center flex items-center justify-center gap-1">
+                        {student.name}
+                        {!gender && <AlertCircle className="w-4 h-4 text-red-500" />}
                       </div>
-                      
+
                       {/* 성별 선택 */}
-                      <div className="flex gap-2 mb-3">
+                      <div className="col-span-2 flex gap-1">
                         <button
                           onClick={() => handleGenderChange(studentKey, 'male')}
-                          className={`flex-1 py-2 border-2 border-black font-bold transition-all ${
-                            gender === 'male'
-                              ? 'bg-blue-500 text-white shadow-neo'
-                              : 'bg-blue-100 hover:bg-blue-200'
-                          }`}
+                          className={`flex-1 py-1 text-sm border-2 border-black font-bold transition-all ${gender === 'male'
+                              ? 'bg-blue-200 shadow-neo-sm'
+                              : 'bg-white hover:bg-gray-50 opacity-50'
+                            }`}
                         >
                           남
                         </button>
                         <button
                           onClick={() => handleGenderChange(studentKey, 'female')}
-                          className={`flex-1 py-2 border-2 border-black font-bold transition-all ${
-                            gender === 'female'
-                              ? 'bg-pink-500 text-white shadow-neo'
-                              : 'bg-pink-100 hover:bg-pink-200'
-                          }`}
+                          className={`flex-1 py-1 text-sm border-2 border-black font-bold transition-all ${gender === 'female'
+                              ? 'bg-pink-200 shadow-neo-sm'
+                              : 'bg-white hover:bg-gray-50 opacity-50'
+                            }`}
                         >
                           여
                         </button>
                       </div>
 
-                      {/* 특이사항 입력 */}
-                      <div>
-                        <label className="text-xs font-bold text-gray-500 block mb-1">특이사항</label>
-                        <select
-                          value={
-                            !specialNeeds ? '해당없음' :
-                            SPECIAL_NEEDS_OPTIONS.includes(specialNeeds) ? specialNeeds :
-                            '기타(직접입력)'
-                          }
+                      <div className="col-span-1 text-center text-gray-500">
+                        {student.number}
+                      </div>
+
+                      {/* 특이사항 태그 선택 */}
+                      <div className="col-span-7 flex flex-wrap gap-1">
+                        {['쌍생아', '특수학급', '다문화', '기초학력', '영재', '건강유의'].map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => toggleTag(tag)}
+                            className={`px-2 py-1 text-xs border border-black transition-all ${selectedTags.includes(tag)
+                                ? 'bg-yellow-300 font-bold shadow-neo-sm'
+                                : 'bg-white hover:bg-gray-50 text-gray-500'
+                              }`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                        {/* 직접 입력 필드 */}
+                        <input
+                          type="text"
+                          placeholder="기타 입력"
+                          className="px-2 py-1 text-xs border border-black min-w-[80px] flex-1"
+                          value={selectedTags.find(t => !['쌍생아', '특수학급', '다문화', '기초학력', '영재', '건강유의'].includes(t)) || ''}
                           onChange={(e) => {
-                            if (e.target.value === '기타(직접입력)') {
-                              handleSpecialNeedsChange(studentKey, '(직접입력)');
+                            const val = e.target.value;
+                            const standardTags = selectedTags.filter(t => ['쌍생아', '특수학급', '다문화', '기초학력', '영재', '건강유의'].includes(t));
+                            if (val.trim()) {
+                              handleSpecialNeedsChange(studentKey, [...standardTags, val].join(','));
                             } else {
-                              handleSpecialNeedsChange(studentKey, e.target.value);
+                              handleSpecialNeedsChange(studentKey, standardTags.join(','));
                             }
                           }}
-                          className="w-full border-2 border-black p-1 text-sm mb-1 bg-white"
-                        >
-                          {SPECIAL_NEEDS_OPTIONS.map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                        {/* '기타(직접입력)'이 선택되었거나, 목록에 없는 값이 입력된 경우 입력창 표시 */}
-                        {((specialNeeds === '(직접입력)') || (specialNeeds && !SPECIAL_NEEDS_OPTIONS.includes(specialNeeds))) && (
-                             <input 
-                                type="text"
-                                placeholder="내용을 입력하세요"
-                                value={specialNeeds === '(직접입력)' ? '' : specialNeeds}
-                                onChange={(e) => handleSpecialNeedsChange(studentKey, e.target.value)}
-                                className="w-full border-2 border-black p-1 text-sm mt-1"
-                                autoFocus={specialNeeds === '(직접입력)'}
-                             />
-                         )}
+                        />
                       </div>
                     </div>
                   );
@@ -295,11 +307,10 @@ const GenderInputModal: React.FC<GenderInputModalProps> = ({
             <button
               onClick={handleConfirm}
               disabled={!isAllGenderSet()}
-              className={`neo-btn ${
-                isAllGenderSet()
+              className={`neo-btn ${isAllGenderSet()
                   ? 'neo-btn-primary'
                   : 'bg-gray-300 cursor-not-allowed'
-              }`}
+                }`}
             >
               <Check className="w-5 h-5 inline mr-2" />
               확인 ({stats.completed}명)
