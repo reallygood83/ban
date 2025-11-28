@@ -13,6 +13,8 @@ const SPECIAL_TAG_OPTIONS = [
     { value: 'basic_learning', label: '기초학력', color: 'bg-orange-100 text-orange-800' },
     { value: 'gifted', label: '영재', color: 'bg-blue-100 text-blue-800' },
     { value: 'health_issue', label: '건강유의', color: 'bg-red-100 text-red-800' },
+    { value: 'transfer', label: '전학', color: 'bg-yellow-100 text-yellow-800' },
+    { value: 'other', label: '기타', color: 'bg-gray-100 text-gray-800' },
 ];
 
 interface ClassRosterUploaderProps {
@@ -137,11 +139,20 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
         setError(null);
 
         try {
-            // 성별이 없는 학생들은 기본값 설정
+            // 성별이 없는 학생들은 기본값 설정, specialTags와 customTag 명시적 포함
             const dataToUpload = previewData.map(student => ({
                 ...student,
-                gender: student.gender || 'male' // 기본값 (나중에 수정 가능)
+                gender: student.gender || 'male', // 기본값 (나중에 수정 가능)
+                specialTags: student.specialTags || [], // 특수태그 명시적 포함
+                customTag: student.customTag || undefined // 기타 태그 명시적 포함
             }));
+
+            // 디버그 로그: 업로드 전 데이터 확인
+            console.log('[ClassRosterUploader] 업로드할 데이터:', dataToUpload.map(s => ({
+                name: s.name,
+                specialTags: s.specialTags,
+                customTag: s.customTag
+            })));
 
             // 1. 데이터 암호화
             const encryptedStudents = await encryptStudentDataBatch(dataToUpload, currentUser.uid);
@@ -330,7 +341,7 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                                         </td>
                                         <td className="p-3 text-gray-600">{student.studentNumber || '-'}</td>
                                         <td className="p-3">
-                                            <div className="flex flex-wrap gap-1">
+                                            <div className="flex flex-wrap gap-1 items-center">
                                                 {SPECIAL_TAG_OPTIONS.map((tag) => {
                                                     const isSelected = student.specialTags?.includes(tag.value);
                                                     return (
@@ -356,7 +367,9 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                                                                     } else {
                                                                         newData[idx] = {
                                                                             ...newData[idx],
-                                                                            specialTags: currentTags.filter(t => t !== tag.value)
+                                                                            specialTags: currentTags.filter(t => t !== tag.value),
+                                                                            // '기타' 해제 시 customTag도 초기화
+                                                                            ...(tag.value === 'other' ? { customTag: undefined } : {})
                                                                         };
                                                                     }
                                                                     setPreviewData(newData);
@@ -367,6 +380,23 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                                                         </label>
                                                     );
                                                 })}
+                                                {/* 기타 선택 시 텍스트 입력 필드 표시 */}
+                                                {student.specialTags?.includes('other') && (
+                                                    <input
+                                                        type="text"
+                                                        value={student.customTag || ''}
+                                                        onChange={(e) => {
+                                                            const newData = [...previewData];
+                                                            newData[idx] = {
+                                                                ...newData[idx],
+                                                                customTag: e.target.value
+                                                            };
+                                                            setPreviewData(newData);
+                                                        }}
+                                                        placeholder="직접 입력"
+                                                        className="px-2 py-1 text-xs border-2 border-black w-24 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                                    />
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

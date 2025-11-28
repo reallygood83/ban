@@ -157,6 +157,7 @@ export interface Student {
   maskedStudentNumber?: string;  // 마스킹된 학번 (예: 2025****23)
   specialNeeds?: string;         // 특수학급, 학습부진 등 (하위 호환성)
   specialTags?: string[];        // 특기사항 태그 배열 (신규)
+  customTag?: string;            // 기타 태그 (사용자 직접 입력)
   notes?: string;
   assignedClass?: number;        // 배정된 반 번호
   separateFrom?: string[];       // 분리 희망 학생 ID 목록
@@ -174,6 +175,7 @@ export interface StudentUploadData {
   studentNumber?: string;
   specialNeeds?: string;
   specialTags?: string[];     // 특기사항 태그 배열
+  customTag?: string;         // 기타 태그 (사용자 직접 입력)
   notes?: string;
 }
 

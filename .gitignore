@@ -12,10 +12,25 @@ dist
 dist-ssr
 *.local
 
-# Environment Variables
+# Environment Variables (API keys, secrets)
 .env
 .env.local
 .env.production
+.env.development
+.env*.local
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+*.firebaserc.backup
+
+# Service Account Keys (절대 업로드 금지!)
+*-firebase-adminsdk-*.json
+serviceAccount*.json
+*.pem
+*.key
+*secret*
 
 # Editor directories and files
 .vscode/*

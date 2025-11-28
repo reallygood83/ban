@@ -59,6 +59,9 @@ export async function encryptStudentData(
     if (uploadData.specialTags && uploadData.specialTags.length > 0) {
       student.specialTags = uploadData.specialTags;
     }
+    if (uploadData.customTag) {
+      student.customTag = uploadData.customTag;
+    }
     if (uploadData.notes) {
       student.notes = uploadData.notes;
     }
