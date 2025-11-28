@@ -12,6 +12,19 @@ const Dashboard: React.FC = () => {
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  const [autoInviteCode, setAutoInviteCode] = useState<string | null>(null);
+
+  // URL에서 초대 코드 확인
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const inviteCode = params.get('invite');
+    if (inviteCode) {
+      setAutoInviteCode(inviteCode);
+      setIsJoinModalOpen(true);
+      // URL에서 파라미터 제거
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   // 프로젝트 목록 로드
   useEffect(() => {
@@ -249,13 +262,16 @@ const Dashboard: React.FC = () => {
             <li className="font-medium">AI 추천을 받거나 직접 배정 방법을 선택하세요</li>
           </ol>
         </div>
-      </main >
-
+      </main>
       <JoinByCodeModal
         isOpen={isJoinModalOpen}
-        onClose={() => setIsJoinModalOpen(false)}
+        onClose={() => {
+          setIsJoinModalOpen(false);
+          setAutoInviteCode(null);
+        }}
+        initialCode={autoInviteCode || undefined}
       />
-    </div >
+    </div>
   );
 };
 

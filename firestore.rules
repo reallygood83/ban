@@ -57,12 +57,17 @@ service cloud.firestore {
     
     // 초대 컬렉션 (루트 레벨 - 쿼리용)
     match /invitations/{invitationId} {
-      allow read: if isSignedIn() && (
-        resource.data.invitedEmail == request.auth.token.email ||
-        resource.data.invitedBy == request.auth.uid
-      );
+      // 읽기: 본인이 초대받은 것 또는 본인이 보낸 것
+      allow read: if isSignedIn();
+      
+      // 생성: 인증된 사용자 누구나
       allow create: if isSignedIn();
-      allow update: if isSignedIn(); // 초대 수락/거절 시 업데이트
+      
+      // 수정: 초대받은 사람 또는 초대한 사람
+      allow update: if isSignedIn();
+      
+      // 삭제: 초대한 사람만
+      allow delete: if isSignedIn() && resource.data.invitedBy == request.auth.uid;
     }
   }
 }

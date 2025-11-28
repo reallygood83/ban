@@ -7,15 +7,42 @@ import { ProjectInvitation } from '../../types';
 interface JoinByCodeModalProps {
     isOpen: boolean;
     onClose: () => void;
+    initialCode?: string;
 }
 
-export const JoinByCodeModal: React.FC<JoinByCodeModalProps> = ({ isOpen, onClose }) => {
+export const JoinByCodeModal: React.FC<JoinByCodeModalProps> = ({ isOpen, onClose, initialCode }) => {
     const { currentUser } = useAuth();
     const [code, setCode] = useState('');
     const [step, setStep] = useState<'input' | 'confirm'>('input');
     const [foundInvitation, setFoundInvitation] = useState<ProjectInvitation | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // initialCode가 있으면 자동으로 검색
+    React.useEffect(() => {
+        if (initialCode && isOpen) {
+            setCode(initialCode);
+            // 자동 검색
+            const autoSearch = async () => {
+                setIsLoading(true);
+                try {
+                    const invitation = await getInvitationByCode(initialCode);
+                    if (invitation) {
+                        setFoundInvitation(invitation);
+                        setStep('confirm');
+                    } else {
+                        setError('유효하지 않거나 만료된 초대 코드입니다.');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    setError('초대 코드 조회 중 오류가 발생했습니다.');
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            autoSearch();
+        }
+    }, [initialCode, isOpen]);
 
     if (!isOpen) return null;
 

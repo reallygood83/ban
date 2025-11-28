@@ -103,21 +103,46 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                         </p>
 
                         {inviteCode && (
-                            <div className="bg-yellow-50 border-2 border-black p-4 mb-6 text-left">
-                                <p className="text-sm font-bold text-gray-500 mb-1">초대 코드</p>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-2xl font-black tracking-widest">{inviteCode}</span>
-                                    <button
-                                        onClick={() => navigator.clipboard.writeText(inviteCode)}
-                                        className="text-sm underline hover:text-blue-600 font-bold"
-                                    >
-                                        복사
-                                    </button>
+                            <>
+                                <div className="bg-yellow-50 border-2 border-black p-4 mb-4 text-left">
+                                    <p className="text-sm font-bold text-gray-500 mb-1">초대 코드</p>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-2xl font-black tracking-widest">{inviteCode}</span>
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(inviteCode);
+                                                alert('코드가 복사되었습니다!');
+                                            }}
+                                            className="text-sm underline hover:text-blue-600 font-bold"
+                                        >
+                                            복사
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        * 이 코드를 직접 전달하여 초대할 수도 있습니다.
+                                    </p>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-2">
-                                    * 이 코드를 직접 전달하여 초대할 수도 있습니다.
-                                </p>
-                            </div>
+
+                                <div className="bg-blue-50 border-2 border-black p-4 mb-6 text-left">
+                                    <p className="text-sm font-bold text-gray-500 mb-1">초대 링크</p>
+                                    <div className="bg-white border border-black p-2 mb-2 break-all text-xs font-mono">
+                                        {`${window.location.origin}?invite=${inviteCode}`}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            const link = `${window.location.origin}?invite=${inviteCode}`;
+                                            navigator.clipboard.writeText(link);
+                                            alert('링크가 복사되었습니다!');
+                                        }}
+                                        className="neo-btn-secondary w-full text-sm"
+                                    >
+                                        링크 복사
+                                    </button>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        * 이 링크를 공유하면 누구나 프로젝트에 참여할 수 있습니다.
+                                    </p>
+                                </div>
+                            </>
                         )}
 
                         <button onClick={handleClose} className="neo-btn neo-btn-primary w-full">
