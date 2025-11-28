@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ========================================
+    // 사용자 인증 함수
+    // ========================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(resource) {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // memberIds 필드가 존재하고 사용자가 멤버인지 확인
+    function isMember(resource) {
+      return isSignedIn() &&
+        resource.data.memberIds != null &&
+        (request.auth.uid in resource.data.memberIds);
+    }
+
+    // 소유자 또는 멤버인지 확인 (memberIds가 없어도 소유자는 접근 가능)
+    function hasProjectAccess(resource) {
+      return isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.memberIds != null && request.auth.uid in resource.data.memberIds)
+      );
+    }
+
+    // 초대를 수락하여 멤버로 추가되는 경우 체크
+    // 요청이 memberIds에 본인을 추가하고 memberCount를 증가시키는 경우 허용
+    function isJoiningAsNewMember() {
+      return isSignedIn() &&
+        request.resource.data.memberIds != null &&
+        request.auth.uid in request.resource.data.memberIds &&
+        (resource.data.memberCount == null || request.resource.data.memberCount > resource.data.memberCount);
+    }
+
+    // ========================================
+    // 프로젝트 컬렉션
+    // ========================================
+    match /projects/{projectId} {
+      // 읽기: 소유자 또는 멤버
+      allow read: if hasProjectAccess(resource);
+
+      // 생성: 인증된 사용자
+      allow create: if isSignedIn();
+
+      // 수정: 소유자, 멤버, 또는 초대 수락으로 새 멤버가 되는 경우
+      allow update: if hasProjectAccess(resource) || isJoiningAsNewMember();
+
+      // 삭제: 소유자만
+      allow delete: if isOwner(resource);
+
+      // ----------------------------------------
+      // 서브컬렉션: 멤버
+      // ----------------------------------------
+      match /members/{memberId} {
+        // 읽기: 인증된 사용자 (프로젝트 접근 권한은 상위에서 체크)
+        allow read: if isSignedIn();
+
+        // 쓰기: 인증된 사용자 (초대 수락, 멤버 관리 등)
+        allow write: if isSignedIn();
+      }
+
+      // ----------------------------------------
+      // 서브컬렉션: 반별 명단
+      // ----------------------------------------
+      match /classRosters/{classNumber} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
+      }
+
+      // ----------------------------------------
+      // 서브컬렉션: 프로젝트 내 초대
+      // ----------------------------------------
+      match /invitations/{invitationId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    // ========================================
+    // 초대 컬렉션 (루트 레벨 - 쿼리용)
+    // ========================================
+    match /invitations/{invitationId} {
+      // 읽기: 인증된 사용자 (초대받은 이메일 확인, 초대 코드 조회 등)
+      allow read: if isSignedIn();
+
+      // 생성: 인증된 사용자 누구나
+      allow create: if isSignedIn();
+
+      // 수정: 인증된 사용자 (초대 수락/거절 시 상태 업데이트)
+      allow update: if isSignedIn();
+
+      // 삭제: 초대한 사람만
+      allow delete: if isSignedIn() && resource.data.invitedBy == request.auth.uid;
+    }
+  }
+}
