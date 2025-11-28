@@ -23,7 +23,8 @@ import {
   ClassRosterUploader,
   InviteMemberModal,
   MemberListPanel,
-  CollaborationStatus
+  CollaborationStatus,
+  ShareLinkGenerator
 } from '../components/collaboration';
 import { getProjectWithAccess } from '../services/projectService';
 import { getAllClassRosters, saveMergedStudentsToProject, subscribeToClassRosters } from '../services/collaborationService';
@@ -392,6 +393,15 @@ const ManageStudents: React.FC = () => {
               <div className="animate-in slide-in-from-top-2">
                 <MemberListPanel projectId={projectId!} currentUserRole={userRole!} />
               </div>
+            )}
+
+            {/* 공유 링크 생성기 */}
+            {(userRole === 'owner' || userRole === 'admin') && (
+              <ShareLinkGenerator
+                projectId={projectId!}
+                projectName={project.name}
+                classCount={project.classCount}
+              />
             )}
 
             {/* 탭 네비게이션 */}

@@ -84,18 +84,32 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                     jsonData = XLSX.utils.sheet_to_json(sheet);
                 }
 
-                const parsedData: StudentUploadData[] = jsonData.map((row: any) => ({
-                    name: row['이름'] || row['Name'] || row['name'],
-                    gender: row['성별'] || row['Gender'] || row['gender'],
-                    studentNumber: row['학번'] || row['Student Number'] || row['student_number'],
-                    specialNeeds: row['특이사항'] || row['Special Needs'] || row['special_needs'],
-                    notes: row['비고'] || row['Notes'] || row['notes'],
-                })).filter(item => item.name && item.gender);
+                const parsedData: StudentUploadData[] = jsonData.map((row: any) => {
+                    // 다양한 컬럼명 지원
+                    const name = row['이름'] || row['성명'] || row['Name'] || row['name'] || row['학생명'];
+                    const gender = row['성별'] || row['Gender'] || row['gender'];
+                    const studentNumber = row['학번'] || row['번호'] || row['Student Number'] || row['student_number'] || row['No'];
+                    const specialNeeds = row['특이사항'] || row['Special Needs'] || row['special_needs'];
+                    const notes = row['비고'] || row['Notes'] || row['notes'] || row['특기사항'];
+
+                    return {
+                        name,
+                        gender,
+                        studentNumber,
+                        specialNeeds,
+                        notes,
+                    };
+                }).filter(item => item.name); // 이름만 있으면 일단 포함
 
                 if (parsedData.length === 0) {
-                    setError('유효한 데이터가 없습니다. 파일의 컨럼명(이름, 성별)을 확인해주세요.');
+                    setError('유효한 데이터가 없습니다. 파일에 "이름" 또는 "성명" 컬럼이 있는지 확인해주세요.');
                     setFile(null);
                 } else {
+                    // 성별이 없는 학생들 확인
+                    const noGenderCount = parsedData.filter(s => !s.gender).length;
+                    if (noGenderCount > 0) {
+                        setError(`${noGenderCount}명의 학생에게 성별 정보가 없습니다. 성별 컬럼을 추가하거나 수동으로 입력해주세요.`);
+                    }
                     setPreviewData(parsedData);
                 }
             } catch (err) {
@@ -114,8 +128,14 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
         setError(null);
 
         try {
+            // 성별이 없는 학생들은 기본값 설정
+            const dataToUpload = previewData.map(student => ({
+                ...student,
+                gender: student.gender || 'male' // 기본값 (나중에 수정 가능)
+            }));
+
             // 1. 데이터 암호화
-            const encryptedStudents = await encryptStudentDataBatch(previewData, currentUser.uid);
+            const encryptedStudents = await encryptStudentDataBatch(dataToUpload, currentUser.uid);
 
             // 2. 서버에 저장
             const result = await saveClassRoster(
@@ -190,13 +210,17 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                     <div className="mt-6 text-sm text-gray-500 bg-white border border-black p-4 inline-block text-left">
                         <p className="font-bold mb-1">📝 필수 컬럼:</p>
                         <ul className="list-disc list-inside">
-                            <li>이름 (Name)</li>
-                            <li>성별 (Gender) - 남/여 또는 male/female</li>
+                            <li>이름 (Name) 또는 성명</li>
                         </ul>
                         <p className="mt-2 font-bold mb-1">ℹ️ 선택 컬럼:</p>
                         <ul className="list-disc list-inside">
-                            <li>학번, 특이사항, 비고</li>
+                            <li>성별 (Gender) - 없으면 기본값으로 설정됨</li>
+                            <li>학번, 번호, 특이사항, 비고</li>
                         </ul>
+                        <p className="mt-2 text-xs text-yellow-700 bg-yellow-50 p-2 border border-yellow-300">
+                            💡 나이스 명렬표를 그대로 업로드하세요!<br />
+                            성별은 나중에 수정할 수 있습니다.
+                        </p>
                     </div>
                 </div>
             ) : uploadSuccess ? (
