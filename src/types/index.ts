@@ -169,7 +169,7 @@ export interface Student {
 // 엑셀 업로드용 학생 데이터 (평문)
 export interface StudentUploadData {
   name: string; // 평문 이름
-  gender: 'male' | 'female' | '남' | '여';
+  gender?: 'male' | 'female'; // Optional - NEIS format doesn't include gender column
   studentNumber?: string;
   specialNeeds?: string;
   notes?: string;

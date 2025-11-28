@@ -452,8 +452,8 @@ export function validateStudentData(students: StudentUploadData[]): {
   }
 
   // 성별 분포 체크
-  const maleCount = students.filter(s => s.gender === 'male' || s.gender === '남').length;
-  const femaleCount = students.filter(s => s.gender === 'female' || s.gender === '여').length;
+  const maleCount = students.filter(s => s.gender === 'male').length;
+  const femaleCount = students.filter(s => s.gender === 'female').length;
 
   if (maleCount === 0 || femaleCount === 0) {
     warnings.push(`성별 분포가 한쪽으로 치우쳐 있습니다. (남: ${maleCount}, 여: ${femaleCount})`);

@@ -26,13 +26,12 @@ export async function encryptStudentData(
       ? maskStudentNumber(uploadData.studentNumber)
       : undefined;
 
-    // 성별 정규화
-    let gender: 'male' | 'female';
-    if (uploadData.gender === '남' || uploadData.gender === 'male') {
-      gender = 'male';
-    } else {
-      gender = 'female';
+    // 성별은 파싱 단계에서 이미 'male' | 'female'로 정규화됨
+    // uploadData.gender는 항상 존재해야 함 (validation 통과)
+    if (!uploadData.gender) {
+      throw new Error(`학생 ${uploadData.name}의 성별 정보가 없습니다.`);
     }
+    const gender = uploadData.gender;
 
     // Firebase는 undefined 값을 허용하지 않으므로 필터링
     const student: Student = {

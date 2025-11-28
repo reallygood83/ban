@@ -273,7 +273,7 @@ export const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                                         <td className="p-3">
                                             <span className={`
                         px-2 py-1 text-xs font-bold border border-black
-                        ${student.gender === 'male' || student.gender === '남' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}
+                        ${student.gender === 'male' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}
                       `}>
                                                 {student.gender}
                                             </span>

@@ -24,7 +24,19 @@ export const ShareLinkGenerator: React.FC<ShareLinkGeneratorProps> = ({
     const [copied, setCopied] = useState(false);
 
     const handleGenerate = async () => {
-        if (!currentUser) return;
+        if (!currentUser) {
+            console.error('초대 생성 실패: 로그인되지 않음');
+            alert('로그인이 필요합니다. 다시 로그인해주세요.');
+            return;
+        }
+
+        console.log('초대 생성 시도:', {
+            projectId,
+            projectName,
+            userId: currentUser.uid,
+            userEmail: currentUser.email,
+            role
+        });
 
         setIsGenerating(true);
         try {
@@ -40,13 +52,20 @@ export const ShareLinkGenerator: React.FC<ShareLinkGeneratorProps> = ({
                 true
             );
 
+            console.log('초대 생성 성공:', invitation);
+
             if (invitation.inviteCode) {
                 const link = `${window.location.origin}?invite=${invitation.inviteCode}`;
                 setShareLink(link);
             }
-        } catch (err) {
-            console.error('링크 생성 실패:', err);
-            alert('링크 생성에 실패했습니다. Firebase 인덱스를 생성해주세요.');
+        } catch (err: any) {
+            console.error('초대 생성 실패:', err);
+            console.error('에러 상세:', {
+                code: err.code,
+                message: err.message,
+                name: err.name
+            });
+            alert(`링크 생성에 실패했습니다.\n에러: ${err.message}\n\n다시 로그인하거나 페이지를 새로고침해주세요.`);
         } finally {
             setIsGenerating(false);
         }

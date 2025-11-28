@@ -101,27 +101,33 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
 
       // 데이터 검증 및 변환
       const students: StudentUploadData[] = jsonData.map((row, index) => {
-        const name = row['이름'] || row['name'] || row['학생이름'];
-        let genderRaw = row['성별'] || row['gender'];
-        let gender: 'male' | 'female';
-
-        // 성별 정규화
-        if (genderRaw === '남' || genderRaw === 'M' || genderRaw === 'male') {
-          gender = 'male';
-        } else if (genderRaw === '여' || genderRaw === 'F' || genderRaw === 'female') {
-          gender = 'female';
-        } else {
-          throw new Error(`${index + 1}번째 행: 성별이 올바르지 않습니다. (남/여 또는 male/female)`);
-        }
+        // 이름 컬럼 감지 (NEIS 형식: "성명", 일반: "이름", "name", "학생이름")
+        const name = row['성명'] || row['이름'] || row['name'] || row['학생이름'];
 
         if (!name) {
           throw new Error(`${index + 1}번째 행: 이름이 없습니다.`);
         }
 
+        // 성별 컬럼 감지 (선택적)
+        let genderRaw = row['성별'] || row['gender'];
+        let gender: 'male' | 'female' | undefined;
+
+        // 성별 정규화 (성별 컬럼이 있는 경우에만)
+        if (genderRaw) {
+          if (genderRaw === '남' || genderRaw === 'M' || genderRaw === 'male') {
+            gender = 'male';
+          } else if (genderRaw === '여' || genderRaw === 'F' || genderRaw === 'female') {
+            gender = 'female';
+          } else {
+            throw new Error(`${index + 1}번째 행: 성별이 올바르지 않습니다. (남/여 또는 male/female)`);
+          }
+        }
+        // 성별 컬럼이 없으면 undefined로 설정 (나중에 수동 입력)
+
         return {
           name: String(name).trim(),
-          gender,
-          studentNumber: row['학번'] || row['studentNumber'] ? String(row['학번'] || row['studentNumber']) : undefined,
+          gender: gender as any, // undefined일 수도 있음
+          studentNumber: row['학번'] || row['번호'] || row['studentNumber'] ? String(row['학번'] || row['번호'] || row['studentNumber']) : undefined,
           specialNeeds: row['비고'] || row['특수사항'] || row['specialNeeds'] ? String(row['비고'] || row['특수사항'] || row['specialNeeds']) : undefined,
           notes: row['참고사항'] || row['notes'] ? String(row['참고사항'] || row['notes']) : undefined,
         };
@@ -184,6 +190,13 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
       return;
     }
 
+    // 성별 정보가 없는 학생 확인
+    const missingGenderStudents = uploadedStudents.filter(s => !s.gender);
+    if (missingGenderStudents.length > 0) {
+      setError(`${missingGenderStudents.length}명의 학생에게 성별 정보가 없습니다. 성별 컬럼을 추가하거나 수동으로 입력해주세요.`);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -195,15 +208,9 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
           const encryptedName = await encryptStudentName(student.name, currentUserId);
           const displayName = maskName(student.name);
 
-          // 성별 정규화 (StudentUploadData는 '남'/'여'를 포함할 수 있음)
-          let gender: 'male' | 'female';
-          if (student.gender === '남' || student.gender === 'male') {
-            gender = 'male';
-          } else if (student.gender === '여' || student.gender === 'female') {
-            gender = 'female';
-          } else {
-            throw new Error(`잘못된 성별 값: ${student.gender}`);
-          }
+          // 성별은 이미 파싱 단계에서 'male' | 'female'로 정규화됨
+          // 이 시점에서는 validation 통과했으므로 student.gender가 항상 존재함
+          const gender = student.gender!; // Non-null assertion since validation passed
 
           return {
             id,
@@ -219,7 +226,7 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
         })
       );
 
-      const result = await saveClassRoster(
+      await saveClassRoster(
         project.id,
         selectedClass,
         encryptedStudents,
@@ -227,14 +234,11 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
         currentUserName
       );
 
-      if (result.success) {
-        await loadExistingRoster(selectedClass);
-        setUploadedStudents([]);
-        setStep('saved');
-        onRosterSaved?.();
-      } else {
-        setError(result.message);
-      }
+      // 성공 시 명단 다시 로드
+      await loadExistingRoster(selectedClass);
+      setUploadedStudents([]);
+      setStep('saved');
+      onRosterSaved?.();
     } catch (err: any) {
       setError(err.message || '명단 저장에 실패했습니다.');
       console.error('저장 오류:', err);
@@ -484,7 +488,7 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                             <td className="px-4 py-2 font-semibold">{student.name}</td>
                             <td className="px-4 py-2">
                               <select
-                                value={student.gender}
+                                value={student.gender || ''}
                                 onChange={(e) => {
                                   const newStudents = [...uploadedStudents];
                                   newStudents[index] = {
@@ -493,8 +497,13 @@ const ClassRosterUploader: React.FC<ClassRosterUploaderProps> = ({
                                   };
                                   setUploadedStudents(newStudents);
                                 }}
-                                className="px-2 py-1 border-2 border-black rounded font-semibold text-sm"
+                                className={`px-2 py-1 border-2 rounded font-semibold text-sm ${
+                                  !student.gender
+                                    ? 'border-red-500 bg-red-50 text-red-700'
+                                    : 'border-black'
+                                }`}
                               >
+                                <option value="" disabled>성별 선택</option>
                                 <option value="male">남</option>
                                 <option value="female">여</option>
                               </select>
